@@ -1,0 +1,95 @@
+# 🥋 Sumo Bot "Mussolini" — 2026 LLCC
+
+Documentación cronológica del desarrollo de **Mussolini**, mi robot de sumo, rumbo a la competencia en **Guanacaste (2026)**.
+
+![Sumo Bot](Sumo%20Bot.jpeg)
+
+---
+
+## 📌 Sobre el proyecto
+
+Este repositorio funciona como bitácora del proceso: pruebas, diagnósticos, código y avances de construcción del bot, desde los primeros experimentos hasta la versión final de competencia.
+
+- **Categoría:** Mini Sumo
+- **Evento objetivo:** Guanacaste, 2026
+- **Plataforma de control:** ESP32 (IdeaBoard) programado en MicroPython/CircuitPython vía Thonny
+- **Próximo paso:** integrar control adicional en Arduino
+
+## ✅ Versión oficial actual
+
+**[`firmware/oficial/sumobot_v6.py`](firmware/oficial/sumobot_v6.py)**
+
+Es la versión más madura del proyecto: pines del sensor ultrasónico correctos, umbrales fijos calibrados por sensor con datos reales, histéresis para evitar lecturas erráticas del sonar, y ataque en "ráfagas" que revisa constantemente el borde y al rival en vez de embestir a ciegas. Adaptada para trabajar con 3 sensores IR porque el sensor frontal izquierdo (sen1) está dañado.
+
+## 🗓️ Cronología de avances
+
+| Etapa | Avance | Ubicación |
+|---|---|---|
+| 1 | Diagnósticos base: motores, sensores IR crudos, ultrasónico | `firmware/diagnosticos/` |
+| 2 | Primeras versiones completas de combate (con bugs) | `firmware/archivo_con_bugs_conocidos/` |
+| 3 | Variantes de estrategia (hit & run, flanqueo, modo combate) | `firmware/estrategias/` |
+| 4 | Versión oficial estabilizada | `firmware/oficial/sumobot_v6.py` |
+
+> Ir agregando filas según haya nuevos avances (fecha, qué cambió, dónde).
+
+## 📂 Estructura del repositorio
+
+```
+Sumo-Bot_Mussolini_2026_LLCC/
+├── README.md
+├── .gitignore
+├── firmware/
+│   ├── oficial/                     ← versión actual de competencia
+│   │   └── sumobot_v6.py
+│   ├── estrategias/                 ← variantes completas y funcionales
+│   │   ├── sumobot_con_ultrasonico_fixed.py
+│   │   ├── sumobot_hit_and_run.py
+│   │   ├── sumobot_flanqueo.py
+│   │   ├── sumobot_combate.py
+│   │   └── daredevil.py
+│   ├── diagnosticos/                ← pruebas de hardware, no de combate
+│   │   ├── diagnostico_motores.py
+│   │   ├── diagnostico_ultrasonico.py
+│   │   ├── code_ultrasonic.py
+│   │   ├── sensores.py
+│   │   ├── sensores_crudos2.py
+│   │   └── leer_sensores.py
+│   └── archivo_con_bugs_conocidos/  ← versiones antiguas, con bugs documentados
+│       ├── master_code.py
+│       ├── master_code2.py
+│       ├── master_code3.py
+│       └── NOTAS.md                 ← explicación de cada bug
+├── docs/                            ← esquemas eléctricos, notas, reglas del torneo
+└── media/                           ← fotos y videos del bot
+```
+
+## 🔧 Hardware (confirmado por el código; completar lo que falte)
+
+- **Microcontrolador:** ESP32 sobre placa IdeaBoard
+- **Sensores de línea:** 4x infrarrojo analógico reflectivo (uno dañado actualmente: frontal izquierdo)
+  - Convención: valores **bajos** = blanco/borde, valores **altos** = negro/piso seguro
+- **Sensor de rival:** 1x ultrasónico HC-SR04 — TRIG en IO25, ECHO en IO26
+- **Motores:** 2x motor DC, controlados por `ib.motor_1` / `ib.motor_2` (throttle de -1.0 a 1.0)
+- Chasis / materiales:
+- Batería:
+
+## 🧠 Estrategia / lógica del bot (versión oficial v6)
+
+1. **Prioridad máxima — evasión de borde:** si cualquier sensor IR detecta blanco, se ejecuta una maniobra de escape antes que cualquier otra acción.
+2. **Ataque:** si el sonar detecta al rival a menos de 30 cm, ataca en ráfagas cortas (0.15 s) verificando borde y presencia del rival en cada una.
+3. **Seguimiento activo:** entre 30 y 90 cm, hace un barrido con micro-giros para localizar el ángulo óptimo hacia el rival y corrige el rumbo.
+4. **Búsqueda:** si no detecta nada, gira hacia el último lado donde vio al rival (o alterna lados si nunca lo ha visto).
+
+## 🚀 Cómo usar el código
+
+- Abrí cualquier archivo `.py` con **Thonny**, conectá la IdeaBoard por USB y ejecutá.
+- Para pruebas de hardware aisladas, usá primero los scripts de `firmware/diagnosticos/`.
+- **No cargues los archivos de `firmware/archivo_con_bugs_conocidos/`** salvo que quieras estudiar o corregir sus bugs (ver `NOTAS.md` en esa carpeta).
+
+## 👤 Autor
+
+Juan D. Gutiérrez Sánchez
+
+## 📄 Licencia
+
+Este proyecto se comparte con fines educativos y de documentación personal. *(Podés cambiar esto por una licencia como MIT si querés que otros reutilicen el código libremente.)*
