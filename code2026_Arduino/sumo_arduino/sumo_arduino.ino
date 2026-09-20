@@ -109,13 +109,13 @@ const int PWM_RES  = 8;      // 0-255
 //  formatos de linea, ambos CSV:
 //
 //    T,<ms>,<estado>,<dist>,<ir0>,<ir1>,<ir2>,<ir3>,<borde>,
-//      <giro_dps>,<inclin_deg>,<dax_g>,<day_g>,<rumbo_deg>,<imu_fallos>
+//      <giro_dps>,<inclin_deg>,<dax_g>,<day_g>,<rumbo_deg>,<imu_fallos>,<corr>
 //    E,<ms>,<evento>,<detalle>
 //
 //  Las "T" salen cada INTERVALO_TELEMETRIA_MS. Las "E" en el momento
 //  exacto del evento. Poner TELEMETRIA en 0 para el combate real.
 // ────────────────────────────────────────────
-#define TELEMETRIA 0   // 1 para probar en banco; 0 para competir (puesto en 0 el 2026-09-20)
+#define TELEMETRIA 0   // 1 para probar en banco; 0 para competir
 const unsigned long INTERVALO_TELEMETRIA_MS = 100;
 
 unsigned long ultimaTelemetria = 0;
@@ -137,7 +137,11 @@ float rumboDeg = 0;          // integral de imuDps desde el arranque (dead recko
 float inclinacionDeg = 0;    // angulo entre el vector de aceleracion actual y el de reposo
 float dAxG = 0, dAyG = 0;    // deltas horizontales respecto al reposo, en g
 unsigned long imuFallos = 0; // lecturas descartadas por I2C o por magnitud absurda
-int   signoGiroIzq = 0;      // +1 si girar a la izquierda da imuDps positivo, -1 si negativo, 0 = aun no observado
+// +1 si girar a la izquierda da imuDps positivo, -1 si negativo. Arranca en
+// +1 porque se midio en este robot el 2026-09-20 (giro a la derecha visto
+// por el usuario + eje Z hacia arriba); el primer pivote lo re-aprende y
+// lo corrige si el sensor cambiara de montaje.
+int   signoGiroIzq = 1;
 bool  golpePendiente = false;
 
 // ────────────────────────────────────────────
@@ -237,12 +241,39 @@ const unsigned long RUMBO_RIVAL_VIGENCIA_MS = 3000;
 
 // ────────────────────────────────────────────
 //  ESTADO DE MOTORES
+//  ultimaIzq/Der: lo ultimo APLICADO a las ruedas (con correccion).
+//  ordenIzq/Der: lo ultimo ORDENADO por la logica (sin correccion).
 // ────────────────────────────────────────────
 float ultimaIzq = 0;
 float ultimaDer = 0;
+float ordenIzq = 0;
+float ordenDer = 0;
 unsigned long impulsoIzqHasta = 0;
 unsigned long impulsoDerHasta = 0;
 unsigned long tUltimoCambioMotores = 0;  // para no confundir nuestra propia aceleracion con un golpe
+bool  mandandoRecto = true;              // la orden vigente es recta (o parada)
+
+// ────────────────────────────────────────────
+//  AVANCE RECTO CON CORRECCION POR GIROSCOPIO
+//  Medido 2026-09-20: a fondo y "recto" el robot curva solo a 15-30
+//  grados/s (motor izquierdo mas fuerte). avanzarRecto() corrige con
+//  un P+I sobre la velocidad angular: rota a la izquierda -> acelera
+//  la rueda izquierda y frena la derecha. El integral absorbe el
+//  desbalance constante; el tope evita que se desboque si el rival
+//  nos rota. Sin giroscopio o sin signo aprendido, no corrige.
+// ────────────────────────────────────────────
+// Medido 2026-09-20 (corrida 8): con Kp 0.015 la correccion saturaba con
+// 20 grados/s, y el giroscopio manejando tiene +/-10-20 de ruido por
+// vibracion: |corr| medio 0.15 para un sesgo real de 0.05-0.10. Por eso
+// el P es chico y va filtrado; el sesgo constante lo lleva el integral.
+const float KP_RECTO = 0.004;             // correccion por cada grado/s (filtrado)
+const float KI_RECTO = 0.030;             // correccion por cada grado acumulado
+const float INTEGRAL_MAX_RECTO = 10.0;    // grados acumulados, tope anti-windup (0.30 de correccion)
+const float CORRECCION_MAX_RECTO = 0.30;  // en unidades de velocidad (0-1)
+const float FILTRO_DPS_RECTO = 0.10;      // paso bajo del P: 0.1 por vuelta ~ 30 ms
+float correccionRecta = 0;
+float integralRecta = 0;
+float dpsFiltrado = 0;
 
 // Sonar
 float ultimaDistValida = DIST_MAX_SONAR + 1;
@@ -289,11 +320,14 @@ float signo(float v) {
 // durante la cual se aplica potencia maxima. Como no hay delay(), el
 // loop() sigue leyendo sensores mientras tanto. Para que la ventana
 // se cierre a tiempo, cualquier movimiento sostenido debe volver a
-// llamar a motores() — moverVigilando() y girarGradosGiro() lo hacen.
-void motores(float izq, float der) {
+// llamar a motores()/avanzarRecto() — moverVigilando() y
+// girarGradosGiro() lo hacen.
+//
+// aplicarMotores() es la capa cruda (impulso + PWM). motores() es la
+// orden directa: pivotes, curvas y parada. Para ir recto se usa
+// avanzarRecto() (en giroscopio_control.ino), que corrige el rumbo.
+void aplicarMotores(float izq, float der) {
   unsigned long ahora = millis();
-
-  if (izq != ultimaIzq || der != ultimaDer) tUltimoCambioMotores = ahora;
 
   if (ultimaIzq == 0 && izq != 0 && fabs(izq) < VEL_IMPULSO) impulsoIzqHasta = ahora + TIEMPO_IMPULSO_MS;
   if (ultimaDer == 0 && der != 0 && fabs(der) < VEL_IMPULSO) impulsoDerHasta = ahora + TIEMPO_IMPULSO_MS;
@@ -308,6 +342,16 @@ void motores(float izq, float der) {
 
   ultimaIzq = izq;
   ultimaDer = der;
+}
+
+void motores(float izq, float der) {
+  if (izq != ordenIzq || der != ordenDer) tUltimoCambioMotores = millis();
+  ordenIzq = izq;
+  ordenDer = der;
+  mandandoRecto = (izq == der);
+  if (!mandandoRecto) { integralRecta = 0; dpsFiltrado = 0; }
+  correccionRecta = 0;
+  aplicarMotores(izq, der);
 }
 
 void detener() {
@@ -354,7 +398,8 @@ void telemetria() {
   Serial.print(dAxG, 3);                        Serial.print(",");
   Serial.print(dAyG, 3);                        Serial.print(",");
   Serial.print(rumboDeg, 1);                    Serial.print(",");
-  Serial.println(imuFallos);
+  Serial.print(imuFallos);                      Serial.print(",");
+  Serial.println(correccionRecta, 3);
 #endif
 }
 
@@ -466,7 +511,7 @@ bool moverVigilando(float izq, float der, unsigned long ms, int vigilar) {
 
   unsigned long t0 = millis();
   while (millis() - t0 < ms) {
-    motores(izq, der);
+    if (izq == der) avanzarRecto(izq); else motores(izq, der);
     leerIMU();
     leerBorde();
     if (vigilar == VIGILAR_ADELANTE) {
@@ -712,12 +757,12 @@ void comportamientoOfensivo() {
 
       estadoTel = "ATAQUE";
       setPixelColor(255, 0, 0);
-      motores(-VEL_ATAQUE, -VEL_ATAQUE);
+      avanzarRecto(-VEL_ATAQUE);
     } else {
       tInicioEmpuje = 0;
       estadoTel = "TRACK";
       setPixelColor(255, 165, 0);
-      motores(-VEL_TRACKING, -VEL_TRACKING);
+      avanzarRecto(-VEL_TRACKING);
     }
 
   } else {
@@ -738,7 +783,7 @@ void comportamientoOfensivo() {
     } else {
       estadoTel = "AVANCE";
       setPixelColor(255, 165, 0);
-      motores(-VEL_TRACKING, -VEL_TRACKING);
+      avanzarRecto(-VEL_TRACKING);
     }
   }
 }
@@ -753,7 +798,7 @@ void setup() {
 
 #if TELEMETRIA
   Serial.println();
-  Serial.println("# T,ms,estado,dist_cm,ir0,ir1,ir2,ir3,borde,giro_dps,inclin_deg,dax_g,day_g,rumbo_deg,imu_fallos");
+  Serial.println("# T,ms,estado,dist_cm,ir0,ir1,ir2,ir3,borde,giro_dps,inclin_deg,dax_g,day_g,rumbo_deg,imu_fallos,corr");
   Serial.println("# E,ms,evento,detalle");
 #endif
 
