@@ -115,7 +115,7 @@ const int PWM_RES  = 8;      // 0-255
 //  Las "T" salen cada INTERVALO_TELEMETRIA_MS. Las "E" en el momento
 //  exacto del evento. Poner TELEMETRIA en 0 para el combate real.
 // ────────────────────────────────────────────
-#define TELEMETRIA 1
+#define TELEMETRIA 0   // 1 para probar en banco; 0 para competir (puesto en 0 el 2026-09-20)
 const unsigned long INTERVALO_TELEMETRIA_MS = 100;
 
 unsigned long ultimaTelemetria = 0;
