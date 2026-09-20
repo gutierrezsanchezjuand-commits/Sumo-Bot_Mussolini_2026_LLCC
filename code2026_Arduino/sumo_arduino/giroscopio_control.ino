@@ -264,6 +264,36 @@ bool leerIMU() {
 }
 
 // ────────────────────────────────────────────
+//  AVANCE RECTO CON CORRECCION
+//  vel con la convencion de motores(): negativo = adelante. Rotar a la
+//  izquierda (e > 0) se compensa acelerando la rueda izquierda y
+//  frenando la derecha: izq = vel - corr, der = vel + corr. La misma
+//  formula sirve marcha atras, porque siempre agrega una rotacion hacia
+//  la derecha independiente de la velocidad base. Sin giroscopio o sin
+//  el signo aprendido, corr = 0 y es motores(vel, vel).
+// ────────────────────────────────────────────
+void avanzarRecto(float vel) {
+  if (vel != ordenIzq || vel != ordenDer) {
+    tUltimoCambioMotores = millis();
+    integralRecta = 0;
+    dpsFiltrado = 0;
+  }
+  ordenIzq = vel;
+  ordenDer = vel;
+  mandandoRecto = true;
+
+  float corr = 0;
+  if (giroListo && signoGiroIzq != 0 && vel != 0) {
+    float e = imuDps * signoGiroIzq;   // > 0: derivando a la izquierda
+    dpsFiltrado += FILTRO_DPS_RECTO * (e - dpsFiltrado);
+    integralRecta = constrain(integralRecta + e * imuDt, -INTEGRAL_MAX_RECTO, INTEGRAL_MAX_RECTO);
+    corr = constrain(KP_RECTO * dpsFiltrado + KI_RECTO * integralRecta, -CORRECCION_MAX_RECTO, CORRECCION_MAX_RECTO);
+  }
+  correccionRecta = corr;
+  aplicarMotores(vel - corr, vel + corr);
+}
+
+// ────────────────────────────────────────────
 //  GIRO POR ANGULO
 //  Gira 'grados' (positivo = izquierda, igual que motores(+V,-V)).
 //  Se detiene dentro del margen de error en vez de exigir el grado
@@ -344,9 +374,15 @@ bool detectarLevantado() {
 // ────────────────────────────────────────────
 bool rotacionForzada() {
   if (!giroListo) return false;
-  bool mandandoRecto = (ultimaIzq == ultimaDer);
   bool graciaMotores = (millis() - tUltimoCambioMotores) < GRACIA_TRAS_CAMBIO_MS;
-  if (!mandandoRecto || graciaMotores || fabs(imuDps) < UMBRAL_ROTACION_FORZADA_DPS) {
+  // Con la correccion de rumbo activa, parte de la rotacion impuesta se
+  // compensa y el giroscopio la ve menor. Por eso tambien cuenta que el
+  // integral este al tope Y siga rotando: la correccion maxima no alcanza,
+  // alguien nos esta girando. (La primera version miraba solo la
+  // saturacion y disparaba con 7-25 grados/s de ruido.)
+  bool rotando = fabs(imuDps) >= UMBRAL_ROTACION_FORZADA_DPS ||
+                 (fabs(integralRecta) >= INTEGRAL_MAX_RECTO && fabs(imuDps) >= UMBRAL_ROTACION_FORZADA_DPS / 2.0);
+  if (!mandandoRecto || graciaMotores || !rotando) {
     tInicioRotForzada = 0;
     return false;
   }
