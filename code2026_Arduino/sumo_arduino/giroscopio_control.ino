@@ -313,7 +313,19 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 
   leerIMU();  // fija la base de tiempo: lo que paso antes no cuenta
 
-  while (acumulado < objetivo - MARGEN_ERROR_GRADOS) {
+  // Un pivote puede durar mucho mas de lo que parece: medido el
+  // 2026-09-20, 25 de 136 giros pasaron de 600 ms y el mas largo llego
+  // al timeout de 3 s (el rival trabandolo). Sin mirar los IR aca, el
+  // robot queda ciego al borde todo ese rato y lo pueden empujar sobre
+  // la linea sin que se entere. Se aborta el giro si un sensor CRUZA a
+  // blanco durante el pivote; lo que ya estaba en blanco al empezar no
+  // cuenta, porque los escapes arrancan justamente sobre la linea.
+  leerBorde();
+  bool yaBlanco[4];
+  for (int i = 0; i < 4; i++) yaBlanco[i] = bordeDet[i];
+  bool bordeNuevo = false;
+
+  while (acumulado < objetivo - MARGEN_ERROR_GRADOS && !bordeNuevo) {
     if (millis() - tInicio > TIMEOUT_GIRO_MS) {
       evento("GIRO_TIMEOUT", String(acumulado, 1) + ";" + String(objetivo, 1));
       break;
@@ -322,6 +334,11 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 
     motores(vel * sentido, -vel * sentido);
     if (leerIMU()) acumulado += fabs(imuDps) * imuDt;
+
+    leerBorde();
+    for (int i = 0; i < 4; i++) {
+      if (bordeDet[i] && !yaBlanco[i]) bordeNuevo = true;
+    }
     telemetria();
   }
 
@@ -329,6 +346,9 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 
   // objetivo;logrado;ms -> con esto se mide cuanto tarda un giro real.
   evento("GIRO", String(grados, 0) + ";" + String(acumulado, 1) + ";" + String(millis() - tInicio));
+  // El loop() atiende el borde en la vuelta siguiente, con su prioridad
+  // normal; el anti-bucle cuenta ese escape como cualquier otro.
+  if (bordeNuevo) evento("GIRO_CORTADO", String(acumulado, 1) + ";" + String(objetivo, 1));
 }
 
 // ────────────────────────────────────────────
