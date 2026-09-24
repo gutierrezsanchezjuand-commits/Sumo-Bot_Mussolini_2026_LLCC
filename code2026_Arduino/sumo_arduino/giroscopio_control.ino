@@ -320,7 +320,7 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
   // la linea sin que se entere. Se aborta el giro si un sensor CRUZA a
   // blanco durante el pivote; lo que ya estaba en blanco al empezar no
   // cuenta, porque los escapes arrancan justamente sobre la linea.
-  leerBorde();
+  actualizarBorde();
   bool yaBlanco[4];
   for (int i = 0; i < 4; i++) yaBlanco[i] = bordeDet[i];
   bool bordeNuevo = false;
@@ -335,7 +335,15 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
     motores(vel * sentido, -vel * sentido);
     if (leerIMU()) acumulado += fabs(imuDps) * imuDt;
 
+    // actualizarBorde(), no leerBorde(): pivotando sobre la linea el
+    // texto seria "EMPUJE_IZQUIERDA" (16 chars, el unico que no entra en
+    // SSO) y se estaria pidiendo y soltando heap en cada iteracion del
+    // giro. Aca solo hacen falta los booleanos.
+#if TELEMETRIA
     leerBorde();
+#else
+    actualizarBorde();
+#endif
     for (int i = 0; i < 4; i++) {
       if (bordeDet[i] && !yaBlanco[i]) bordeNuevo = true;
     }
