@@ -21,7 +21,8 @@
        se bajo el timeout del sensor ultrasonico de 30ms a 6ms (ya que
        de todas formas se ignora todo lo que este a mas de 100cm).
 
-  CAMBIOS 2026-09-20 (compilados, SIN probar en el robot todavia):
+  CAMBIOS 2026-09-20 (probados en el robot real, nueve corridas; los
+  valores de las constantes salen de esas mediciones):
     5. Ningun delay() ciego en las maniobras: moverVigilando() sigue
        leyendo los IR mientras se mueve y aborta si aparece el borde
        del lado hacia el que va.
@@ -51,9 +52,15 @@
    14. Levantamiento por angulo de inclinacion 3D: compara el vector
        de aceleracion completo (X, Y, Z) contra el de reposo calibrado,
        asi funciona aunque el robot no este nivelado. Con histeresis.
-   15. I2C validado: lecturas absurdas se descartan y se cuentan.
+   15. I2C validado: lecturas absurdas se descartan y se cuentan, y el
+       bus se destraba a pulsos si el sensor quedo colgado por un reset.
+   16. Avance recto con correccion de rumbo por giroscopio
+       (avanzarRecto(), P+I): los motores son desparejos y la embestida
+       se curvaba sola 15-30 grados/s. Medido despues: +2 grados/s
+       avanzando libre, +/-1 empujando.
 
   Requiere "Adafruit NeoPixel" y "Adafruit LSM6DS" (Library Manager).
+  Core ESP32 3.x: con el 2.x no compila (ledcAttach cambio de firma).
 */
 
 #include <Adafruit_NeoPixel.h>
