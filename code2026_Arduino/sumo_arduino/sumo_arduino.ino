@@ -59,6 +59,40 @@
        se curvaba sola 15-30 grados/s. Medido despues: +2 grados/s
        avanzando libre, +/-1 empujando.
 
+  CAMBIOS 2026-09-23:
+   17. Los pivotes eran ciegos al borde. girarGradosGiro() no leia los
+       IR en su bucle, y girarConFallback()/giroInicial() pivoteaban con
+       VIGILAR_NADA. Medido: de 136 giros, 25 pasaron de 600 ms y el mas
+       largo llego al timeout de 3 s -- todo ese rato el rival podia
+       empujarnos sobre la linea sin que el robot se enterara. Ahora los
+       pivotes abortan si un sensor CRUZA a blanco durante el giro (lo
+       que ya estaba en blanco no cuenta: los escapes arrancan sobre la
+       linea). Evento nuevo: GIRO_CORTADO. Modo nuevo: VIGILAR_CUALQUIERA.
+
+  De la revision externa del 2026-09-23 (gracias) se tomo:
+   18. Throttle del sonar (INTERVALO_SONAR_MS). Ver el comentario en la
+       constante: el guard de ECHO ya cubria el campo abierto, la
+       ganancia real es persiguiendo, y es grande.
+   19. evento() pasa a ser macro, asi las llamadas desaparecen enteras
+       con TELEMETRIA en 0 (antes los String se armaban igual en el
+       llamador). La revision arreglaba solo GIRO_INICIAL, que corre una
+       vez por combate; el caro era GOLPE, dentro de leerIMU().
+   20. Separacion actualizarBorde() / leerBorde(). Se toma porque es mas
+       claro, NO por rendimiento: ver el comentario sobre small string
+       optimization arriba de esas funciones.
+
+  De esa revision NO se tomo:
+    - Subir VEL_TRACKING a 0.85 y bajar el avance a ciegas a 0.65.
+      El razonamiento (a ciegas no sabes si apuntas al centro o al
+      borde) es bueno, pero ninguno de los dos numeros esta medido y
+      subir la persecucion va en la direccion de salirse del ring.
+      Decision del usuario: no tocar velocidades sin banco.
+    - Su diagnostico de que el "se vuelve loco" era fragmentacion de
+      heap por String. Las capturas del 20-09 lo contradicen: era
+      FACTOR_UMBRAL en 0.60 (el sensor 1 leia 1633 contra un umbral de
+      1711 y cruzaba por vibracion). Con 0.45 se corrieron 30 s sin un
+      solo escape fantasma.
+
   Requiere "Adafruit NeoPixel" y "Adafruit LSM6DS" (Library Manager).
   Core ESP32 3.x: con el 2.x no compila (ledcAttach cambio de firma).
 */
@@ -167,6 +201,16 @@ const unsigned long PERDIDO_TRAS_MS   = 150;
 // contacto el rival no puede haberse esfumado: se espera mas.
 const float DIST_CONTACTO = 12.0;
 const unsigned long PERDIDO_CONTACTO_MS = 500;
+
+// Throttle del sonar. El guard de ECHO ya evita disparar durante los
+// ~38 ms que el modulo queda ocupado tras un eco perdido, asi que en
+// campo abierto el costo ya estaba acotado. Donde pesa es PERSIGUIENDO:
+// con el rival a 30 cm el eco vuelve en ~1.7 ms, ECHO baja, y se
+// disparaba de nuevo en la vuelta siguiente, dejando el ciclo en ~2.6 ms
+// contra ~0.9 ms sin sonar. Con 20 ms de por medio (nadie recorre 100 cm
+// en ese lapso) el control de rumbo y la lectura de borde corren ~3x mas
+// seguido justo cuando se va a fondo contra la linea.
+const unsigned long INTERVALO_SONAR_MS = 20;
 
 const float VEL_ATAQUE   = 1.0;   // Maxima potencia en contacto
 const float VEL_TRACKING = 0.80;  // Avance directo hacia el rival (40-100cm)
@@ -285,11 +329,13 @@ float dpsFiltrado = 0;
 // Sonar
 float ultimaDistValida = DIST_MAX_SONAR + 1;
 unsigned long tUltimoEco = 0;
+unsigned long tUltimoIntentoSonar = 0;  // throttle: ver INTERVALO_SONAR_MS
 
 // Que mirar durante un movimiento vigilado (ver moverVigilando)
-const int VIGILAR_NADA     = 0;
-const int VIGILAR_ADELANTE = 1;
-const int VIGILAR_ATRAS    = 2;
+const int VIGILAR_NADA       = 0;
+const int VIGILAR_ADELANTE   = 1;
+const int VIGILAR_ATRAS      = 2;
+const int VIGILAR_CUALQUIERA = 3;  // pivotes: no hay "lado hacia el que va"
 
 // ────────────────────────────────────────────
 //  CONTROL DE MOTORES
@@ -375,16 +421,25 @@ void setPixelColor(uint8_t r, uint8_t g, uint8_t b) {
 //  Con TELEMETRIA en 0 las dos funciones quedan vacias y el
 //  compilador las elimina: cero costo en competencia.
 // ────────────────────────────────────────────
-void evento(String nombre, String detalle) {
+// evento() es un MACRO, no una funcion, a proposito: los argumentos de
+// una funcion se construyen en el llamador aunque el cuerpo este vacio,
+// asi que con TELEMETRIA en 0 se seguian armando los String de cada
+// llamada ("GIRO", "GOLPE", "ESCAPE"...). El de GOLPE vive dentro de
+// leerIMU(), o sea en cada vuelta del loop. Como macro, con TELEMETRIA
+// en 0 la llamada entera desaparece antes de compilar.
 #if TELEMETRIA
+void eventoImpl(String nombre, String detalle) {
   Serial.print("E,");
   Serial.print(millis());
   Serial.print(",");
   Serial.print(nombre);
   Serial.print(",");
   Serial.println(detalle);
-#endif
 }
+#define evento(nombre, detalle) eventoImpl((nombre), (detalle))
+#else
+#define evento(nombre, detalle) do { } while (0)
+#endif
 
 void telemetria() {
 #if TELEMETRIA
@@ -432,13 +487,18 @@ float pulsoSonar() {
 // timeout. Asi que: si ECHO esta alto, no se dispara y se usa la
 // ultima distancia valida (si es reciente).
 float medirDistanciaCm() {
+  unsigned long ahora = millis();
   float d = -1;
-  if (digitalRead(PIN_ECHO) == LOW) d = pulsoSonar();
+
+  if (ahora - tUltimoIntentoSonar >= INTERVALO_SONAR_MS && digitalRead(PIN_ECHO) == LOW) {
+    tUltimoIntentoSonar = ahora;
+    d = pulsoSonar();
+  }
 
   if (d >= 0) {
     ultimaDistValida = d;
-    tUltimoEco = millis();
-  } else if (millis() - tUltimoEco <= RETENCION_DIST_MS) {
+    tUltimoEco = ahora;
+  } else if (ahora - tUltimoEco <= RETENCION_DIST_MS) {
     d = ultimaDistValida;
   } else {
     d = DIST_MAX_SONAR + 1;
@@ -462,6 +522,18 @@ float medirDistanciaCm() {
 //    EMPUJE_IZQUIERDA  frontal y trasero izq.
 //    FRENTE_IZQ / FRENTE_DER   un frontal       -> retroceder y girar
 //    ATRAS_IZQ  / ATRAS_DER    un trasero       -> avanzar y girar
+//
+//  Estan separadas en dos: actualizarBorde() solo refresca bordeDet[] y
+//  dice si hay borde; leerBorde() ademas arma el texto para el resto del
+//  codigo. Asi el camino caliente (el while de moverVigilando) no pasa
+//  por la clasificacion.
+//
+//  NO esperar de esto una ganancia de rendimiento: el ESP32 tiene small
+//  string optimization con capacidad 14 (SSOSIZE = sizeof(_ptr)+4-1),
+//  asi que siete de los ocho textos y el "" del caso normal viven en la
+//  pila, sin tocar el heap. El unico que asigna es "EMPUJE_IZQUIERDA"
+//  (16 caracteres), que es de los casos mas raros. Se deja separado
+//  porque es mas claro, no porque arregle nada.
 // ────────────────────────────────────────────
 bool esBorde(int valor, int i) {
   if (blancoEsMenor[i]) {
@@ -471,7 +543,8 @@ bool esBorde(int valor, int i) {
   }
 }
 
-String leerBorde() {
+// Refresca irCrudo[] y bordeDet[]. Devuelve si algun sensor ve blanco.
+bool actualizarBorde() {
   bool alguno = false;
   for (int i = 0; i < 4; i++) {
     irCrudo[i] = analogRead(pinesIr[i]);
@@ -482,6 +555,14 @@ String leerBorde() {
     for (int i = 0; i < 4; i++) {
       if (bordeDet[i]) bordeDet[i] = esBorde(analogRead(pinesIr[i]), i);
     }
+  }
+  return alguno;
+}
+
+String leerBorde() {
+  if (!actualizarBorde()) {
+    bordeTel = "";
+    return "";
   }
 
   bool fl = bordeDet[0], fr = bordeDet[1], rl = bordeDet[2], rr = bordeDet[3];
@@ -512,7 +593,7 @@ String leerBorde() {
 //  se cierre.
 // ────────────────────────────────────────────
 bool moverVigilando(float izq, float der, unsigned long ms, int vigilar) {
-  leerBorde();
+  actualizarBorde();
   bool yaBlanco[4];
   for (int i = 0; i < 4; i++) yaBlanco[i] = bordeDet[i];
 
@@ -520,11 +601,20 @@ bool moverVigilando(float izq, float der, unsigned long ms, int vigilar) {
   while (millis() - t0 < ms) {
     if (izq == der) avanzarRecto(izq); else motores(izq, der);
     leerIMU();
+    // Con telemetria encendida se usa leerBorde() para que la columna
+    // "borde" del CSV no quede vieja durante las maniobras — es una de
+    // las columnas con las que se diagnostica.
+#if TELEMETRIA
     leerBorde();
+#else
+    actualizarBorde();
+#endif
     if (vigilar == VIGILAR_ADELANTE) {
       if ((bordeDet[0] && !yaBlanco[0]) || (bordeDet[1] && !yaBlanco[1])) return true;
     } else if (vigilar == VIGILAR_ATRAS) {
       if ((bordeDet[2] && !yaBlanco[2]) || (bordeDet[3] && !yaBlanco[3])) return true;
+    } else if (vigilar == VIGILAR_CUALQUIERA) {
+      for (int i = 0; i < 4; i++) if (bordeDet[i] && !yaBlanco[i]) return true;
     }
     telemetria();
   }
@@ -540,7 +630,9 @@ void girarConFallback(float grados) {
   }
   float s = signo(grados);
   unsigned long ms = (unsigned long)(TIEMPO_GIRO_90_MS * fabs(grados) / 90.0);
-  moverVigilando(VEL_ATAQUE * s, -VEL_ATAQUE * s, ms, VIGILAR_NADA);
+  // Mismo criterio que girarGradosGiro: un pivote no tiene "lado hacia
+  // el que va", asi que se vigilan los cuatro sensores.
+  moverVigilando(VEL_ATAQUE * s, -VEL_ATAQUE * s, ms, VIGILAR_CUALQUIERA);
   detener();
 }
 
@@ -720,14 +812,16 @@ void giroInicial() {
   if (ronda == 1) return;  // frente a frente: ya queda mirando al rival
 
   setPixelColor(255, 255, 0);
-  unsigned long t0 = millis();
+#if TELEMETRIA
+  unsigned long t0 = millis();  // solo lo usa el evento de abajo
+#endif
   float grados = (ronda == 2) ? 90.0 : 180.0;
 
   if (giroListo) {
     girarGradosGiro(-grados, VEL_ATAQUE, true);  // negativo: mismo sentido que el codigo original
   } else {
     unsigned long ms = (ronda == 2) ? TIEMPO_GIRO_90_MS : TIEMPO_GIRO_180_MS;
-    moverVigilando(-VEL_ATAQUE, VEL_ATAQUE, ms, VIGILAR_NADA);
+    moverVigilando(-VEL_ATAQUE, VEL_ATAQUE, ms, VIGILAR_CUALQUIERA);
     detener();
   }
 
