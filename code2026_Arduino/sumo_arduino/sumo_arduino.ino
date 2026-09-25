@@ -157,7 +157,7 @@ const int PWM_RES  = 8;      // 0-255
 //  exacto del evento. Poner TELEMETRIA en 0 para el combate real.
 // ────────────────────────────────────────────
 #define TELEMETRIA 0   // 1 para probar en banco; 0 para competir
-const unsigned long INTERVALO_TELEMETRIA_MS = 100;
+const unsigned long INTERVALO_TELEMETRIA_MS = 100;  // 0 = una linea por vuelta (~2 ms), para diagnosticar IR
 
 unsigned long ultimaTelemetria = 0;
 int    irCrudo[4]  = {0, 0, 0, 0};
@@ -230,12 +230,30 @@ const unsigned long TIEMPO_IMPULSO_MS = 70;
 //  SEPARACION_MINIMA_IR: si negro y blanco quedan mas cerca que esto,
 //  el sensor no esta discriminando (IO34 es sospechoso en este kit).
 // ────────────────────────────────────────────
-// Medido 2026-09-20: el blanco lee 35-70 en tres sensores (y ~1160 en el
-// frontal izquierdo, degradado) contra 2000-3500 el negro. Con 0.60 el
-// umbral quedaba a 500 cuentas del negro y las vibraciones lo cruzaban
-// (escapes fantasma). Con 0.45 sobra margen hacia los dos lados.
+// Medido 2026-09-25 en un dojo de NEGRO BRILLANTE: el negro brillante
+// funciona como espejo y, andando, a ciertos angulos devuelve el IR
+// directo al receptor (reflejo especular). Eso produce "destellos": la
+// lectura baja del negro (~1800) a 230-806, cruza un umbral alto y
+// dispara un escape fantasma. Con 0.45 hubo 85 escapes en 4 minutos.
+//
+// Lo que separa un destello de la linea real es la PROFUNDIDAD, no la
+// duracion: a 2 ms de resolucion, los 8 cruces reales llegaron a 18-94
+// (el blanco calibrado) y los 70 destellos nunca bajaron de 230. Hay un
+// hueco limpio entre 94 y 230, y el umbral tiene que caer ahi.
+//
+// Simulado sobre esa captura: 0.45 dispara con 70/70 destellos; 0.10
+// con 1/70, y los 8 cruces reales se siguen detectando con cualquier
+// factor. Se eligio 0.10 y no menos a proposito: bajar mas solo gana el
+// ultimo destello a cambio de exigirle mas profundidad a un cruce real,
+// y perder un cruce cuesta el round.
+//
+// Confirmado que NO es electrico: 52 s con el robot sostenido quieto y
+// los motores girando dieron cero excursiones; aparecieron recien al
+// soltarlo. Y es relativo a la calibracion, asi que en un dojo mate
+// (sin destellos) 0.10 sigue siendo seguro: el blanco mate tambien lee
+// hondo. Historial: 0.60 (20-09, fantasmas por vibracion) -> 0.45 -> 0.10.
 const int   MUESTRAS_CALIBRACION = 12;
-const float FACTOR_UMBRAL[4] = {0.45, 0.45, 0.45, 0.45};  // [FrontIzq, FrontDer, TrasIzq, TrasDer]
+const float FACTOR_UMBRAL[4] = {0.10, 0.10, 0.10, 0.10};  // [FrontIzq, FrontDer, TrasIzq, TrasDer]
 const int   SEPARACION_MINIMA_IR = 150;
 
 // ────────────────────────────────────────────
