@@ -16,12 +16,15 @@
   Este archivo aporta:
     - leerIMU(): UNA lectura validada por vuelta del loop. Todo lo demas
       (giro, levantamiento, golpe, rumbo) sale de esa lectura.
-    - girarGradosGiro(): giro por angulo real.
-    - detectarLevantado(): inclinacion 3D contra el vector de reposo.
+    - girarGradosGiro(): giro por angulo real; se corta si se traba.
+    - detectarLevantado(): inclinacion 3D (filtrada) contra el vector
+      de reposo, sostenida sin cortes.
     - rotacionForzada() / detectarEmpujeLateral(): nos estan moviendo
       sin que lo mandemos.
     - maniobraEscapePreciso(), reaccionLevantado(),
       reaccionPerdiendoEmpuje(), reaccionEmpujeLateral().
+  Con MODO_SIMPLE en 1 (sumo_arduino.ino) no se detectan levantamiento,
+  golpe ni rotacion forzada.
 
   EJE DE GIRO: confirmado con "giroscopio_diagnostico.ino" en el robot
   real -> es el eje Z (GYRO_EJE_GIRO = 2). El SIGNO (si girar a la
@@ -49,6 +52,10 @@ const unsigned long TIMEOUT_GIRO_MS = 3000;         // limite de seguridad (180 
 const float ZONA_DESACELERACION_GRADOS = 25.0;      // ultimos grados a velocidad reducida (solo con desacelerar=true)
 const float VEL_DESACELERACION = 0.75;
 const float FILTRO_DRIFT_RAD_S = 0.015;             // muestras mas rapidas que esto no entran al promedio del drift
+// Giro trabado: si en una ventana no avanza ni esto, algo lo sujeta (el
+// rival) o esta en el aire. Un pivote sano a 0.75 hace 27+ grados en 300 ms.
+const unsigned long VENTANA_GIRO_TRABADO_MS = 300;
+const float GIRO_MINIMO_VENTANA = 8.0;
 
 // ── Levantamiento (inclinacion 3D) ──
 // Una rampa que levanta el frente inclina el chasis unos 15-25 grados.
@@ -64,6 +71,20 @@ const float INCLINACION_SALIDA_DEG = 10.0;
 // un solo ciclo; 150 ms los filtraba por poco. Un levantamiento real dura
 // segundos, asi que 250 ms discrimina sin retrasar demasiado la reaccion.
 const unsigned long DURACION_LEVANTADO_MS = 250;
+// Probado en el robot el 2026-09-25: 8 de 9 LEVANTADO_DET falsos llegaron
+// 27-48 ms despues de terminar un giro. Una muestra de mas de 15 grados
+// antes de la maniobra arrancaba la cuenta, la maniobra corria sin evaluar
+// (este detector solo se llama desde el loop) y el frenazo al terminar
+// completaba los "250 ms sostenidos". Ahora la cuenta arranca de nuevo si
+// pasaron mas de HUECO_EVAL_LEVANTADO_MS sin evaluar (el loop normal da
+// una vuelta cada pocos ms; cualquier maniobra dura mas).
+// Y se decide sobre la inclinacion filtrada: con el robot de verdad en el
+// aire y los motores a fondo, la vibracion bajaba muestras sueltas de 15
+// grados, reiniciaba la cuenta y la deteccion tardaba 0.2-3.3 s. Con
+// 100 ms de filtro, un sacudon de 30 ms sube la filtrada ~7 grados (no
+// llega a 15) y un levantamiento real la cruza en ~60 ms.
+const unsigned long HUECO_EVAL_LEVANTADO_MS = 50;
+const float TAU_INCLINACION_S = 0.10;
 // Antes 30 grados/s, lo que apagaba la deteccion durante toda la
 // busqueda (~90 grados/s). Ese valor respondia al metodo viejo (solo eje
 // Z), donde la vibracion del giro parecia una caida de g. Con el angulo
@@ -82,6 +103,10 @@ const unsigned long GRACIA_TRAS_CAMBIO_MS = 150;    // tras cambiar la orden de 
 const float UMBRAL_ROTACION_FORZADA_DPS = 60.0;     // mandando recto y girando mas que esto: nos rotan
 const unsigned long VIGENCIA_GOLPE_MS = 200;        // un golpe mas viejo que esto ya no justifica reaccionar
 const unsigned long DURACION_ROTACION_FORZADA_MS = 100;
+// Inclinar el chasis reparte la gravedad entre los ejes: Y sube ~0.4 g (y
+// parece un golpe desde atras) mientras Z BAJA. Un golpe de verdad no
+// cambia Z. A 20 grados Z ya cae 0.06 g.
+const float Z_GOLPE_INCLINADO_G = 0.05;
 
 // ── Reaccion al levantamiento ──
 const unsigned long RETROCESO_LEVANTADO_MS = 280;
@@ -97,6 +122,9 @@ bool levantado = false;
 unsigned long tInicioLevante = 0;
 unsigned long tInicioRotForzada = 0;
 unsigned long tUltimoGolpe = 0;
+float golpeAz = 0;                    // cambio de Z en el ultimo golpe, en g: si cae, era el chasis inclinandose
+float inclinacionFiltrada = 0;        // inclinacionDeg con un pasa-bajos de TAU_INCLINACION_S
+unsigned long tUltimaEvalLevante = 0; // ultima vez que detectarLevantado() evaluo de verdad
 
 const float RAD_A_GRADOS = 180.0 / PI;
 
@@ -239,6 +267,7 @@ bool leerIMU() {
   float norma = sqrt(axg * axg + ayg * ayg + azg * azg) * normReposo;
   float c = (norma > 0) ? (dot / norma) : 1.0;
   inclinacionDeg = acos(constrain(c, -1.0, 1.0)) * RAD_A_GRADOS;
+  if (dt > 0) inclinacionFiltrada += (dt / (TAU_INCLINACION_S + dt)) * (inclinacionDeg - inclinacionFiltrada);
   dAxG = axg - ax0;
   dAyG = ayg - ay0;
 
@@ -257,6 +286,7 @@ bool leerIMU() {
       ms - tUltimoGolpe > COOLDOWN_GOLPE_MS) {
     tUltimoGolpe = ms;
     golpePendiente = true;
+    golpeAz = azg - az0;
     evento("GOLPE", String(horizontal, 2) + ";" + String(dAxG, 2) + ";" + String(dAyG, 2) + ";" + estadoTel);
   }
 
@@ -324,6 +354,8 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
   bool yaBlanco[4];
   for (int i = 0; i < 4; i++) yaBlanco[i] = bordeDet[i];
   bool bordeNuevo = false;
+  unsigned long tVentana = tInicio;
+  float acumuladoVentana = 0;
 
   while (acumulado < objetivo - MARGEN_ERROR_GRADOS && !bordeNuevo) {
     if (millis() - tInicio > TIMEOUT_GIRO_MS) {
@@ -334,6 +366,20 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 
     motores(vel * sentido, -vel * sentido);
     if (leerIMU()) acumulado += fabs(imuDps) * imuDt;
+
+    // Trabado: en VENTANA_GIRO_TRABADO_MS no giro ni GIRO_MINIMO_VENTANA
+    // grados (el rival lo sujeta, o esta en el aire). Seguir mandando el
+    // pivote lo dejaria ciego hasta el timeout de 3 s: se corta y el loop
+    // decide con los sensores. Medido 2026-09-20: 25 de 136 giros pasaron
+    // de 600 ms y uno llego al timeout.
+    if (millis() - tVentana >= VENTANA_GIRO_TRABADO_MS) {
+      if (acumulado - acumuladoVentana < GIRO_MINIMO_VENTANA) {
+        evento("GIRO_TRABADO", String(acumulado, 1) + ";" + String(objetivo, 1) + ";" + String(millis() - tInicio));
+        break;
+      }
+      tVentana = millis();
+      acumuladoVentana = acumulado;
+    }
 
     // actualizarBorde(), no leerBorde(): pivotando sobre la linea el
     // texto seria "EMPUJE_IZQUIERDA" (16 chars, el unico que no entra en
@@ -367,24 +413,30 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 //  no depende de que el robot este nivelado ni de como esta montado
 //  el IMU. Se ignora mientras el robot gira rapido (la vibracion del
 //  giro se confunde con inclinacion) y exige DURACION_LEVANTADO_MS
-//  sostenidos para no disparar por una frenada o un golpe.
+//  sostenidos, sin cortes y sobre la inclinacion filtrada, para no
+//  disparar por una frenada, un golpe o el final de un giro.
 //  Solo detecta y avisa - la reaccion esta en reaccionLevantado().
 // ────────────────────────────────────────────
 bool detectarLevantado() {
-  if (!giroListo) return false;
+  if (MODO_SIMPLE || !giroListo) return false;
+  unsigned long ahora = millis();
+  // Sostenido = observado sin cortes. Una maniobra no pasa por aca, y un
+  // giro rapido no se evalua: si hubo un hueco, la cuenta arranca de nuevo.
+  if (ahora - tUltimaEvalLevante > HUECO_EVAL_LEVANTADO_MS) tInicioLevante = 0;
   if (fabs(imuDps) > UMBRAL_GIRO_ACTIVO) return levantado;  // girando fuerte: no evaluar este ciclo
+  tUltimaEvalLevante = ahora;
 
   if (!levantado) {
-    if (inclinacionDeg > INCLINACION_LEVANTADO_DEG) {
-      if (tInicioLevante == 0) tInicioLevante = millis();
-      if (millis() - tInicioLevante >= DURACION_LEVANTADO_MS) {
+    if (inclinacionFiltrada > INCLINACION_LEVANTADO_DEG) {
+      if (tInicioLevante == 0) tInicioLevante = ahora;
+      if (ahora - tInicioLevante >= DURACION_LEVANTADO_MS) {
         levantado = true;
-        evento("LEVANTADO_DET", String(inclinacionDeg, 1) + ";" + String(dAxG, 2) + ";" + String(dAyG, 2));
+        evento("LEVANTADO_DET", String(inclinacionFiltrada, 1) + ";" + String(dAxG, 2) + ";" + String(dAyG, 2));
       }
     } else {
       tInicioLevante = 0;
     }
-  } else if (inclinacionDeg < INCLINACION_SALIDA_DEG) {
+  } else if (inclinacionFiltrada < INCLINACION_SALIDA_DEG) {
     levantado = false;
     tInicioLevante = 0;
   }
@@ -401,7 +453,7 @@ bool detectarLevantado() {
 //  que nos empujan de costado.
 // ────────────────────────────────────────────
 bool rotacionForzada() {
-  if (!giroListo) return false;
+  if (MODO_SIMPLE || !giroListo) return false;
   bool graciaMotores = (millis() - tUltimoCambioMotores) < GRACIA_TRAS_CAMBIO_MS;
   // Con la correccion de rumbo activa, parte de la rotacion impuesta se
   // compensa y el giroscopio la ve menor. Por eso tambien cuenta que el
@@ -421,12 +473,15 @@ bool rotacionForzada() {
 // Fuera de ataque, un golpe o una rotacion forzada significan que el
 // rival nos alcanzo por donde no lo esperabamos.
 bool detectarEmpujeLateral() {
-  if (!giroListo) return false;
+  if (MODO_SIMPLE || !giroListo) return false;
   if (estadoTel == "ATAQUE") return false;   // en ataque el contacto es esperado
   if (rotacionForzada()) return true;
   // Un golpe registrado durante una maniobra (flanqueo, escape) no debe
-  // disparar al terminar la maniobra: solo cuenta si es reciente.
-  bool golpeReciente = golpePendiente && (millis() - tUltimoGolpe) < VIGENCIA_GOLPE_MS;
+  // disparar al terminar la maniobra: solo cuenta si es reciente. Y un
+  // "golpe" con Z caida es el chasis inclinandose: lo resuelve
+  // detectarLevantado(), no esto.
+  bool golpeReciente = golpePendiente && (millis() - tUltimoGolpe) < VIGENCIA_GOLPE_MS &&
+                       golpeAz >= -Z_GOLPE_INCLINADO_G;
   golpePendiente = false;
   return golpeReciente;
 }
@@ -460,6 +515,10 @@ void maniobraEscapePreciso(String direccion) {
     girarConFallback(izq ? (200.0 + extra) : -(200.0 + extra));
   }
   else if (direccion == "ATRAS") {
+    // Si se repite (anti-bucle), lo estan empujando de espaldas contra el
+    // borde: pivotear 45 grados lo saca de la linea de empuje antes de
+    // avanzar. En el simulador era la unica derrota que quedaba.
+    if (emergencia) girarConFallback(girarIzquierda ? 45.0 : -45.0);
     moverVigilando(-1.0, -1.0, 200, VIGILAR_ADELANTE);  // el dojo esta adelante; ya mira hacia adentro
   }
   else if (direccion == "EMPUJE_DERECHA" || direccion == "EMPUJE_IZQUIERDA") {
@@ -511,33 +570,27 @@ void reaccionLevantado() {
 }
 
 // ────────────────────────────────────────────
-//  EMPUJE FRONTAL PERDIDO: soltar y flanquear
-//  Retrocede corto, gira ANGULO_FLANQUEO (contra la rotacion que nos
-//  imponian, si la hubo, para re-centrar sobre el rival; si fue por
-//  tiempo, alterna), avanza un tramo en diagonal y deja que el loop
-//  lo vuelva a encontrar - ahora de costado.
+//  EMPUJE FRONTAL PERDIDO (nos rotan): soltar y flanquear
+//  Retrocede corto, gira ANGULO_FLANQUEO contra la rotacion que nos
+//  imponian (para re-centrar sobre el rival), avanza un tramo en
+//  diagonal y deja que el loop lo vuelva a encontrar - ahora de costado.
+//  Solo se llega aca por rotacionForzada(): el corte por tiempo se quito
+//  (cambio 21).
 // ────────────────────────────────────────────
-void reaccionPerdiendoEmpuje(String motivo) {
+void reaccionPerdiendoEmpuje() {
   float dpsAlDetectar = imuDps;
-  evento("EMPUJE_PERDIDO", motivo + ";" + String(dpsAlDetectar, 1));
+  evento("EMPUJE_PERDIDO", "rotado;" + String(dpsAlDetectar, 1));
   setPixelColor(255, 80, 0);
   estadoTel = "FLANQUEO";
 
   moverVigilando(1.0, 1.0, RETROCESO_FLANQUEO_MS, VIGILAR_ATRAS);
   detener();
 
-  bool izq;
-  if (motivo == "rotado" && signoGiroIzq != 0) {
-    izq = (dpsAlDetectar * signoGiroIzq) < 0;   // nos rotaban a la derecha -> girar a la izquierda
-    girarIzquierda = izq;
-  } else {
-    girarIzquierda = !girarIzquierda;
-    izq = girarIzquierda;
-  }
+  bool izq = (dpsAlDetectar * signoGiroIzq) < 0;   // nos rotaban a la derecha -> girar a la izquierda
+  girarIzquierda = izq;
   girarConFallback(izq ? ANGULO_FLANQUEO : -ANGULO_FLANQUEO);
   moverVigilando(-VEL_ATAQUE, -VEL_ATAQUE, AVANCE_FLANQUEO_MS, VIGILAR_ADELANTE);
 
-  tInicioEmpuje = 0;
   tInicioRotForzada = 0;
 }
 
@@ -545,6 +598,10 @@ void reaccionPerdiendoEmpuje(String motivo) {
 //  EMPUJE LATERAL / GOLPE fuera de ataque: escapar hacia adelante
 //  Sale de la linea de empuje a fondo (vigilando el borde frontal).
 //  Despues el loop busca al rival hacia donde se lo vio por ultima vez.
+//  El 25-09 se probo ENCARAR (girar hacia el golpe) y se quito: en el
+//  robot real el arranque propio pasa de 0.35 g y se leia como golpe por
+//  detras -> media vuelta de espaldas al rival (13 giros en 93 s). Con
+//  esta reaccion un golpe falso cuesta 350 ms hacia adelante.
 // ────────────────────────────────────────────
 void reaccionEmpujeLateral() {
   evento("EMPUJE_LATERAL", String(imuDps, 1) + ";" + String(dAxG, 2) + ";" + String(dAyG, 2));

@@ -93,6 +93,47 @@
       1711 y cruzaba por vibracion). Con 0.45 se corrieron 30 s sin un
       solo escape fantasma.
 
+  CAMBIOS 2026-09-25 (plan de correcciones de la boveda, calificado con el
+  simulador: ~80 peleas por variante contra caja, rival que embiste,
+  rival tipico del kit y el firmware anterior en espejo):
+   21. Sin corte por tiempo del empuje frontal. A los 4 s en ATAQUE se
+       soltaba y flanqueaba, fuera ganando o perdiendo, y cada eco perdido
+       reiniciaba ese reloj. Contra un rival parejo el flanqueo no llegaba
+       al costado: solo reiniciaba el empuje trabado. Ahora solo se suelta
+       si nos ROTAN (rotacionForzada). Simulador: de 0 a 9 victorias de 15.
+   22. Eco perdido pegado al rival: el AVANCE a ciegas sigue a fondo si el
+       rival estaba a menos de DIST_ATAQUE. Antes bajaba a VEL_TRACKING y,
+       al cambiar la orden, reiniciaba la correccion de rumbo y la gracia
+       de la rotacion forzada en pleno empuje.
+   23. Un "golpe" con el chasis inclinado (Z cae) es un levantamiento y ya
+       no cuenta como golpe. (Tambien entraba ENCARAR -girar hacia el
+       golpe-; se quito tras probarlo en el robot, ver el cambio 28.)
+   24. Giro trabado: si un giro por giroscopio no avanza 8 grados en 300 ms
+       (el rival lo sujeta, o esta en el aire) se corta. Antes quedaba
+       ciego hasta el timeout de 3 s (medido en el robot el 20-09).
+   25. Acorralado de espaldas al borde (anti-bucle en ATRAS): pivotea 45
+       grados antes de avanzar, para salir de la linea de empuje.
+   26. Calibracion: aviso de sensor IR degradado (blanco por encima del 25 %
+       del negro deja el umbral pegado al negro). Tres parpadeos violeta.
+   27. MODO_SIMPLE: seguro de torneo, apaga las reacciones del IMU.
+
+  Del plan NO se tomo, porque el simulador no mostro mejora: detectar la
+  busqueda trabada, empujar en curva para romper empates, cambiar la
+  maniobra de flanqueo, empujar de mas sobre la linea.
+
+  CAMBIOS 2026-09-25, noche (probado el plan en el robot, con telemetria):
+   28. ENCARAR quitado: el golpe fuera de ataque vuelve a escapar 350 ms
+       hacia adelante. En el robot real el arranque y el cabeceo del chasis
+       pasan de 0.35 g y se leian como "golpe por detras": 13 giros en 93 s,
+       9 de media vuelta, de espaldas al rival. El simulador no lo vio (su
+       IMU no tiene esos sacudones). Decision del usuario: opcion
+       conservadora.
+   29. Levantado sostenido de verdad: la cuenta de 250 ms arranca de nuevo
+       si el detector estuvo sin evaluar (maniobras, giros rapidos), y se
+       decide sobre la inclinacion filtrada. En el robot, 8 de 9
+       LEVANTADO_DET falsos llegaban justo al terminar un giro, y los
+       levantamientos reales tardaban 0.2-3.3 s en detectarse.
+
   Requiere "Adafruit NeoPixel" y "Adafruit LSM6DS" (Library Manager).
   Core ESP32 3.x: con el 2.x no compila (ledcAttach cambio de firma).
 */
@@ -158,6 +199,15 @@ const int PWM_RES  = 8;      // 0-255
 // ────────────────────────────────────────────
 #define TELEMETRIA 0   // 1 para probar en banco; 0 para competir
 const unsigned long INTERVALO_TELEMETRIA_MS = 100;  // 0 = una linea por vuelta (~2 ms), para diagnosticar IR
+
+// ────────────────────────────────────────────
+//  MODO SIMPLE (seguro de torneo)
+//  1 = sin reacciones del IMU: no detecta levantamiento, golpe ni
+//  rotacion forzada. Quedan el borde, la busqueda, el ataque, los giros
+//  por angulo y el avance recto con correccion. Para volver a algo
+//  sencillo si alguna reaccion se porta raro el dia del torneo.
+// ────────────────────────────────────────────
+#define MODO_SIMPLE 0
 
 unsigned long ultimaTelemetria = 0;
 int    irCrudo[4]  = {0, 0, 0, 0};
@@ -255,6 +305,10 @@ const unsigned long TIEMPO_IMPULSO_MS = 70;
 const int   MUESTRAS_CALIBRACION = 12;
 const float FACTOR_UMBRAL[4] = {0.10, 0.10, 0.10, 0.10};  // [FrontIzq, FrontDer, TrasIzq, TrasDer]
 const int   SEPARACION_MINIMA_IR = 150;
+// Sensor degradado: si el blanco lee mas que esta fraccion del negro, el
+// umbral queda pegado al negro y cualquier caida de la lectura lo cruza
+// (el 20-09 el sensor 0 leia blanco 1161-2384 con negro ~3480).
+const float BLANCO_MAX_FRACCION = 0.25;
 
 // ────────────────────────────────────────────
 //  GIRO INICIAL SEGUN LA RONDA (reglamento: 3 combates con
@@ -283,9 +337,9 @@ unsigned long tiemposEscape[ESCAPES_ANTIBUCLE] = {0, 0, 0};
 int idxEscape = 0;
 
 // ────────────────────────────────────────────
-//  EMPUJE FRONTAL PERDIDO -> soltar y flanquear
+//  EMPUJE FRONTAL PERDIDO (nos rotan) -> soltar y flanquear
+//  Ya no hay corte por tiempo: ver el cambio 21.
 // ────────────────────────────────────────────
-const unsigned long EMPUJE_MAX_MS = 4000;        // en ataque sin resolverse mas de esto: soltar
 const float ANGULO_FLANQUEO = 60.0;
 const unsigned long RETROCESO_FLANQUEO_MS = 200;
 const unsigned long AVANCE_FLANQUEO_MS = 250;
@@ -301,7 +355,6 @@ const unsigned long ESCAPE_ADELANTE_MS = 350;
 bool girarIzquierda = false;  // ultimo sentido de giro elegido (busqueda / escapes)
 bool buscando = false;
 unsigned long tUltimaDeteccion = 0;
-unsigned long tInicioEmpuje = 0;   // desde cuando esta en ATAQUE sin resolverse
 
 float rumboRival = 0;              // rumbo (grados, marco del giroscopio) donde se vio al rival
 bool  rumboRivalValido = false;
@@ -727,6 +780,7 @@ void esperarBotonYLeer(int lecturas[4], uint8_t r, uint8_t g, uint8_t b) {
 
 void calibracionPorPasos() {
   int negro[4], blanco[4], dummy[4];
+  int sensoresConAviso = 0;
 
   Serial.println("PASO 1: Sensores sobre NEGRO y presiona BOOT.");
   esperarBotonYLeer(negro, 255, 0, 0);
@@ -746,10 +800,22 @@ void calibracionPorPasos() {
     Serial.print(" | umbral: "); Serial.print(umbrales[i]);
     Serial.print(" | separacion: "); Serial.print(separacion);
     Serial.print(" | blancoEsMenor: "); Serial.print(blancoEsMenor[i] ? "SI (normal)" : "NO (revisar orden)");
-    if (separacion < SEPARACION_MINIMA_IR) Serial.print("  <-- DEBIL: revisar sensor/cable");
+    if (separacion < SEPARACION_MINIMA_IR) {
+      Serial.print("  <-- DEBIL: revisar sensor/cable");
+      sensoresConAviso++;
+    } else if (blancoEsMenor[i] && blanco[i] > negro[i] * BLANCO_MAX_FRACCION) {
+      Serial.print("  <-- DEGRADADO: el blanco lee alto, el umbral queda cerca del negro");
+      sensoresConAviso++;
+    }
     Serial.println();
   }
   Serial.println("------------------------------");
+  if (sensoresConAviso > 0) {   // aviso visible sin Serial: tres violeta
+    for (int k = 0; k < 3; k++) {
+      setPixelColor(255, 0, 255); delay(150);
+      setPixelColor(0, 0, 0);     delay(150);
+    }
+  }
 
   Serial.println("Calibracion exitosa! Presiona BOOT para combate.");
   esperarBotonYLeer(dummy, 0, 255, 0);
@@ -850,8 +916,8 @@ void giroInicial() {
 // ────────────────────────────────────────────
 //  COMPORTAMIENTO OFENSIVO / BUSQUEDA
 //  Sin barrido: avance directo. En ataque vigila si nos estan rotando
-//  (empuje perdido) o si el empuje se eterniza. Al perder al rival,
-//  busca hacia donde se lo vio por ultima vez.
+//  (empuje perdido); si no, empuja hasta que se resuelva. Al perder al
+//  rival, busca hacia donde se lo vio por ultima vez.
 // ────────────────────────────────────────────
 void comportamientoOfensivo() {
   float distanciaFrontal = medirDistanciaCm();
@@ -870,23 +936,18 @@ void comportamientoOfensivo() {
     }
 
     if (distanciaFrontal < DIST_ATAQUE) {
-      if (tInicioEmpuje == 0) tInicioEmpuje = ahora;
-      if (rotacionForzada()) { reaccionPerdiendoEmpuje("rotado"); return; }
-      if (ahora - tInicioEmpuje > EMPUJE_MAX_MS) { reaccionPerdiendoEmpuje("tiempo"); return; }
+      if (rotacionForzada()) { reaccionPerdiendoEmpuje(); return; }
 
       estadoTel = "ATAQUE";
       setPixelColor(255, 0, 0);
       avanzarRecto(-VEL_ATAQUE);
     } else {
-      tInicioEmpuje = 0;
       estadoTel = "TRACK";
       setPixelColor(255, 165, 0);
       avanzarRecto(-VEL_TRACKING);
     }
 
   } else {
-    tInicioEmpuje = 0;
-
     unsigned long esperaPerdido = (ultimaDistValida < DIST_CONTACTO) ? PERDIDO_CONTACTO_MS : PERDIDO_TRAS_MS;
     if (!buscando && ahora - tUltimaDeteccion > esperaPerdido) {
       buscando = true;
@@ -902,7 +963,10 @@ void comportamientoOfensivo() {
     } else {
       estadoTel = "AVANCE";
       setPixelColor(255, 165, 0);
-      avanzarRecto(-VEL_TRACKING);
+      // Recien perdido estando cerca (en contacto el sonar pierde ecos): se
+      // sigue a fondo. Con la misma orden que ATAQUE tampoco se reinician
+      // la correccion de rumbo ni la gracia de rotacionForzada.
+      avanzarRecto((ultimaDistValida < DIST_ATAQUE) ? -VEL_ATAQUE : -VEL_TRACKING);
     }
   }
 }
