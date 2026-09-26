@@ -196,9 +196,25 @@ const int PWM_RES  = 8;      // 0-255
 //
 //  Las "T" salen cada INTERVALO_TELEMETRIA_MS. Las "E" en el momento
 //  exacto del evento. Poner TELEMETRIA en 0 para el combate real.
+//  FLASHEAR.bat la elige al compilar (-DTELEMETRIA=1) sin tocar este
+//  archivo; el 0 de abajo es lo que usa el IDE.
 // ────────────────────────────────────────────
+#ifndef TELEMETRIA
 #define TELEMETRIA 0   // 1 para probar en banco; 0 para competir
+#endif
 const unsigned long INTERVALO_TELEMETRIA_MS = 100;  // 0 = una linea por vuelta (~2 ms), para diagnosticar IR
+
+// ────────────────────────────────────────────
+//  FIRMA DE LA VERSION
+//  FLASHEAR.bat compila con -DFIRMA_ID=<fecha>_<modo>_<hash del codigo> y
+//  el robot la imprime al arrancar: asi se sabe que codigo tiene cargado.
+//  Compilado desde el IDE dice "sin_firma_IDE".
+// ────────────────────────────────────────────
+#ifndef FIRMA_ID
+#define FIRMA_ID sin_firma_IDE
+#endif
+#define TEXTO_(x) #x
+#define TEXTO(x) TEXTO_(x)
 
 // ────────────────────────────────────────────
 //  MODO SIMPLE (seguro de torneo)
@@ -206,8 +222,11 @@ const unsigned long INTERVALO_TELEMETRIA_MS = 100;  // 0 = una linea por vuelta 
 //  rotacion forzada. Quedan el borde, la busqueda, el ataque, los giros
 //  por angulo y el avance recto con correccion. Para volver a algo
 //  sencillo si alguna reaccion se porta raro el dia del torneo.
+//  FLASHEAR.bat tiene la opcion "seguro de torneo" que lo compila en 1.
 // ────────────────────────────────────────────
+#ifndef MODO_SIMPLE
 #define MODO_SIMPLE 0
+#endif
 
 unsigned long ultimaTelemetria = 0;
 int    irCrudo[4]  = {0, 0, 0, 0};
@@ -978,9 +997,11 @@ void comportamientoOfensivo() {
 void setup() {
   Serial.begin(115200);
   delay(300);  // deja que el puerto se asiente antes de la cabecera
+  Serial.println();
+  Serial.print("Firmware: ");
+  Serial.println(TEXTO(FIRMA_ID));
 
 #if TELEMETRIA
-  Serial.println();
   Serial.println("# T,ms,estado,dist_cm,ir0,ir1,ir2,ir3,borde,giro_dps,inclin_deg,dax_g,day_g,rumbo_deg,imu_fallos,corr");
   Serial.println("# E,ms,evento,detalle");
 #endif
