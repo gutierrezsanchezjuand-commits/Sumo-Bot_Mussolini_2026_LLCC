@@ -85,6 +85,10 @@ Pines y mediciones: [docs/hardware.md](docs/hardware.md).
 
 Juan D. Gutiérrez Sánchez
 
+## 🤝 Compañero de equipo
+
+[Sumobot-2026](https://github.com/str1k3rr-beep/Sumobot-2026) — el repositorio del robot de un compañero de la misma competencia.
+
 ## 📄 Licencia
 
 Este proyecto se comparte con fines educativos y de documentación personal.
