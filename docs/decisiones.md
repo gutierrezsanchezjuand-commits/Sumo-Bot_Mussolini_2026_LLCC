@@ -307,3 +307,26 @@ y afuera). **Límite de la prueba**: el simulador no tiene ecos falsos (gente u
 objetos fuera del dojo), así que mide el costo de barrer pero no el beneficio
 de confirmar. Si en el dojo real el robot persigue cosas que no son el rival,
 vale la pena volver a mirarlo con esa captura.
+
+## Nivelación de motores: probada y descartada (2026-09-27)
+
+Pedido del usuario al ver en el [simulador](../simulador/README.md) el arco de
+una carga. La curva es real: el robot tiene un motor más fuerte y el simulador
+lo copia (derecha +11 %). La corrección por giroscopio ya la endereza: en una
+carga de ~30 cm contra la caja se desvía 0.8–1.0 cm de costado y 2.0–2.6° de
+rumbo. Se probaron tres formas de nivelar más, con las mismas peleas:
+
+| Variante | Carga de ~30 cm | General (30 peleas) | Foco (24 peleas) |
+|---|---|---|---|
+| **actual** | 0.8–1.0 cm, 2.0–2.6° | **50 pts**, 4 derrotas | **28 pts**, 6 derrotas |
+| nivelación automática (aprende qué motor es más fuerte y le quita potencia) | 0.7–0.9 cm, 1.5–2.2° | 48, 4 | 26, 6 |
+| corrector más firme (`KI_RECTO` 0.03 → 0.05) | 0.5–0.7 cm, 1.3–1.7° | 45, 5 | 25, 7 |
+| las dos juntas | 0.4–0.6 cm, 1.0–1.5° | 44, 6 | 24, 8 |
+| las dos juntas, con el desbalance al revés | — | 35, **13** | 15, **13** |
+
+(El actual con el desbalance al revés: 45 pts, 7 derrotas; foco 24, 8.)
+
+La carga sale más derecha, pero las peleas empeoran en las dos baterías, y con
+el desbalance del otro lado la combinación se desarma. **No se cambió nada.**
+Una nivelación fija tampoco sirve: el motor más fuerte cambia de lado entre
+sesiones ([Parámetros](parametros.md)).

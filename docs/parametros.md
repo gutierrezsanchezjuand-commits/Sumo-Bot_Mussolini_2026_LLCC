@@ -308,6 +308,14 @@ corrección: −6.6 hoy, +15–30 en la corrida 3); empujando 2–3 s, **−0.6 
 signo cada pocos ciclos), bajar `KP_RECTO` a 0.002; si tarda en enderezar,
 subir `KI_RECTO` a 0.04.
 
+**El motor más fuerte cambia de lado entre sesiones** (revisado el 27-09 en
+las capturas, corrección media en tramos rectos libres, sin los primeros
+300 ms): 20-09 **+0.05** (derecho más fuerte), 25-09 **−0.04 a −0.07**
+(izquierdo), 26-09 **+0.03** (derecho). Por eso no sirve una nivelación fija
+de motores ("derecho −10 %"): acertaría algunos días y duplicaría la curva
+otros. La corrección por giroscopio, que se adapta, es la herramienta
+correcta. Ver también la nivelación probada en [Decisiones](decisiones.md).
+
 
 ## Firmware del plan (2026-09-25) — constantes nuevas, sin medir en el robot
 
