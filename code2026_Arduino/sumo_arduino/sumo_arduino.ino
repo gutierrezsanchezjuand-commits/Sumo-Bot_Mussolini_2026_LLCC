@@ -134,6 +134,27 @@
        LEVANTADO_DET falsos llegaban justo al terminar un giro, y los
        levantamientos reales tardaban 0.2-3.3 s en detectarse.
 
+  CAMBIOS 2026-09-26 (pedidos del usuario tras verlo en el dojo):
+   30. Escape del borde mas decidido: retrocede 450 ms (antes 180) de
+       frente y 350 ms (antes 120) con un solo sensor frontal, y ese caso
+       ahora da media vuelta (180, antes 90: quedaba paralelo a la linea).
+       Los giros de escape de frente y de costado vigilan el sonar: si ve
+       al rival, cortan y el loop ataca (evento GIRO_INTERRUMPIDO_SONAR).
+       Los de atras no: ahi el rival esta enfrente empujando y el pivote
+       es para salir de su linea (con el corte se perdia el acorralado).
+       Simulador (fisica 3): foco 31 -> 32 pts, general 52 -> 52, 0
+       derrotas; los giros trabados contra el borde, de 300+ a 3-67.
+   31. Tanteo en TRACK: con el rival a 40-100 cm avanza barriendo +-3
+       grados de lado a lado; el barrido que lo pierde se invierte al
+       instante, asi el rumbo se centra solo sobre el rival.
+   32. Golpe o empuje de costado: el escape hacia adelante se corta si el
+       sonar ve al rival (evento ESCAPE_INTERRUMPIDO_SONAR) y ataca.
+   33. Levantamiento: retrocede hasta que el IMU confirma que la base
+       volvio a apoyar entera (inclinacion filtrada < 10 grados sostenida
+       150 ms), entre 250 y 1500 ms, vigilando el borde de atras (evento
+       LEVANTADO_APOYO). Antes eran 280 ms fijos.
+   El flanqueo por empuje frontal perdido ("el 50/50") no se toco.
+
   Requiere "Adafruit NeoPixel" y "Adafruit LSM6DS" (Library Manager).
   Core ESP32 3.x: con el 2.x no compila (ledcAttach cambio de firma).
 */
@@ -365,8 +386,26 @@ const unsigned long AVANCE_FLANQUEO_MS = 250;
 
 // ────────────────────────────────────────────
 //  GOLPE / EMPUJE LATERAL fuera de ataque -> escapar hacia adelante
+//  (el escape se corta si el sonar ve al rival: cambio 32)
 // ────────────────────────────────────────────
 const unsigned long ESCAPE_ADELANTE_MS = 350;
+
+// ────────────────────────────────────────────
+//  TANTEO EN TRACK (cambio 31)
+//  Con el rival a 40-100 cm, en vez de avanzar derecho barre suave de
+//  lado a lado sin dejar de avanzar. Cada barrido dura TANTEO_SEMIPERIODO_MS,
+//  o menos si el sonar lo pierde: entonces se invierte enseguida para
+//  volver a encontrarlo (antes de que PERDIDO_TRAS_MS lo mande a buscar).
+//  Como el barrido hacia el rival dura entero y el que se aleja se corta
+//  al perderlo, el rumbo se va centrando solo sobre el: eso confirma
+//  donde esta. Con el rival centrado barre +-3 grados (el cono del sonar
+//  es de +-15), asi que no lo pierde. Sin medir en el robot todavia.
+// ────────────────────────────────────────────
+const float TANTEO_DPS = 20.0;                  // velocidad de giro pedida durante el barrido
+const unsigned long TANTEO_SEMIPERIODO_MS = 300;
+int sentidoTanteo = 1;                          // +1 izquierda, -1 derecha
+unsigned long tCambioTanteo = 0;                // inicio del barrido actual; 0 = sin tanteo en curso
+bool tanteoInvertidoAlPerder = false;           // ya se invirtio por esta perdida
 
 // ────────────────────────────────────────────
 //  ESTADO DE COMBATE
@@ -689,7 +728,7 @@ bool moverVigilando(float izq, float der, unsigned long ms, int vigilar) {
 
   unsigned long t0 = millis();
   while (millis() - t0 < ms) {
-    if (izq == der) avanzarRecto(izq); else motores(izq, der);
+    if (izq == der) avanzarRecto(izq, 0.0); else motores(izq, der);
     leerIMU();
     // Con telemetria encendida se usa leerBorde() para que la columna
     // "borde" del CSV no quede vieja durante las maniobras — es una de
@@ -715,7 +754,7 @@ bool moverVigilando(float izq, float der, unsigned long ms, int vigilar) {
 // sensor, por tiempo proporcional a TIEMPO_GIRO_90_MS.
 void girarConFallback(float grados) {
   if (giroListo) {
-    girarGradosGiro(grados, VEL_ATAQUE, false);
+    girarGradosGiro(grados, VEL_ATAQUE, false, false);
     return;
   }
   float s = signo(grados);
@@ -723,6 +762,21 @@ void girarConFallback(float grados) {
   // Mismo criterio que girarGradosGiro: un pivote no tiene "lado hacia
   // el que va", asi que se vigilan los cuatro sensores.
   moverVigilando(VEL_ATAQUE * s, -VEL_ATAQUE * s, ms, VIGILAR_CUALQUIERA);
+  detener();
+}
+
+// Igual que girarConFallback(), pero para los giros de una maniobra de
+// escape (borde, golpe, empuje perdido): si el sonar ve al rival, corta
+// el giro y ataca (cambio 30). No tiene sentido terminar de evadir para
+// recien despues buscarlo, si ya lo tiene enfrente.
+void girarConFallbackVigilando(float grados) {
+  if (giroListo) {
+    girarGradosGiro(grados, VEL_ATAQUE, false, true);
+    return;
+  }
+  float s = signo(grados);
+  unsigned long ms = (unsigned long)(TIEMPO_GIRO_90_MS * fabs(grados) / 90.0);
+  moverVigilandoSonar(VEL_ATAQUE * s, -VEL_ATAQUE * s, ms, VIGILAR_CUALQUIERA);
   detener();
 }
 
@@ -921,7 +975,7 @@ void giroInicial() {
   float grados = (ronda == 2) ? 90.0 : 180.0;
 
   if (giroListo) {
-    girarGradosGiro(-grados, VEL_ATAQUE, true);  // negativo: mismo sentido que el codigo original
+    girarGradosGiro(-grados, VEL_ATAQUE, true, false);  // negativo: mismo sentido que el codigo original
   } else {
     unsigned long ms = (ronda == 2) ? TIEMPO_GIRO_90_MS : TIEMPO_GIRO_180_MS;
     moverVigilando(-VEL_ATAQUE, VEL_ATAQUE, ms, VIGILAR_CUALQUIERA);
@@ -955,15 +1009,22 @@ void comportamientoOfensivo() {
     }
 
     if (distanciaFrontal < DIST_ATAQUE) {
+      tCambioTanteo = 0;   // en ataque, derecho
       if (rotacionForzada()) { reaccionPerdiendoEmpuje(); return; }
 
       estadoTel = "ATAQUE";
       setPixelColor(255, 0, 0);
-      avanzarRecto(-VEL_ATAQUE);
+      avanzarRecto(-VEL_ATAQUE, 0.0);
     } else {
       estadoTel = "TRACK";
       setPixelColor(255, 165, 0);
-      avanzarRecto(-VEL_TRACKING);
+      // Tanteo (cambio 31): cada TANTEO_SEMIPERIODO_MS cambia el lado.
+      if (tCambioTanteo == 0 || ahora - tCambioTanteo >= TANTEO_SEMIPERIODO_MS) {
+        if (tCambioTanteo != 0) sentidoTanteo = -sentidoTanteo;
+        tCambioTanteo = ahora;
+      }
+      tanteoInvertidoAlPerder = false;
+      avanzarRecto(-VEL_TRACKING, sentidoTanteo * TANTEO_DPS);
     }
 
   } else {
@@ -975,6 +1036,7 @@ void comportamientoOfensivo() {
     }
 
     if (buscando) {
+      tCambioTanteo = 0;
       estadoTel = "BUSCA";
       setPixelColor(0, 0, 255);
       motores(girarIzquierda ? VEL_BUSQUEDA : -VEL_BUSQUEDA,
@@ -982,10 +1044,24 @@ void comportamientoOfensivo() {
     } else {
       estadoTel = "AVANCE";
       setPixelColor(255, 165, 0);
-      // Recien perdido estando cerca (en contacto el sonar pierde ecos): se
-      // sigue a fondo. Con la misma orden que ATAQUE tampoco se reinician
-      // la correccion de rumbo ni la gracia de rotacionForzada.
-      avanzarRecto((ultimaDistValida < DIST_ATAQUE) ? -VEL_ATAQUE : -VEL_TRACKING);
+      if (ultimaDistValida < DIST_ATAQUE) {
+        // Recien perdido estando cerca (en contacto el sonar pierde ecos): se
+        // sigue a fondo. Con la misma orden que ATAQUE tampoco se reinician
+        // la correccion de rumbo ni la gracia de rotacionForzada.
+        avanzarRecto(-VEL_ATAQUE, 0.0);
+      } else if (tCambioTanteo != 0) {
+        // Recien perdido tanteando: el barrido se paso del borde del rival.
+        // Se invierte una sola vez para volver a encontrarlo antes de que
+        // PERDIDO_TRAS_MS lo mande a buscar.
+        if (!tanteoInvertidoAlPerder) {
+          sentidoTanteo = -sentidoTanteo;
+          tCambioTanteo = ahora;
+          tanteoInvertidoAlPerder = true;
+        }
+        avanzarRecto(-VEL_TRACKING, sentidoTanteo * TANTEO_DPS);
+      } else {
+        avanzarRecto(-VEL_TRACKING, 0.0);
+      }
     }
   }
 }

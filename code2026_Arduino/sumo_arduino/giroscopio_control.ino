@@ -85,6 +85,36 @@ const unsigned long DURACION_LEVANTADO_MS = 250;
 // llega a 15) y un levantamiento real la cruza en ~60 ms.
 const unsigned long HUECO_EVAL_LEVANTADO_MS = 50;
 const float TAU_INCLINACION_S = 0.10;
+
+// ── Escape del borde: retroceso y giro (cambio 30) ──
+// Pedido del usuario (26-09): la evasion se veia leve. El retroceso era de
+// 120-180 ms (3-4 cm a los ~20 cm/s medidos) y el caso mas comun, un solo
+// sensor frontal, giraba 90 grados: quedaba paralelo al borde. Ahora
+// retrocede mas y da media vuelta. El retroceso sigue vigilando el borde
+// de atras, asi que alargarlo no lo tira del otro lado. Sin medir en un
+// escape real todavia: primer valor a probar en el robot.
+const unsigned long RETROCESO_ESCAPE_FRENTE_MS = 450;    // antes 180
+const unsigned long RETROCESO_ESCAPE_LATERAL_MS = 350;   // antes 120
+const float ANGULO_ESCAPE_FRENTE = 200.0;                // ya eran 200 (sin cambio)
+const float ANGULO_ESCAPE_LATERAL = 180.0;               // antes 90
+// Si el sonar ve al rival mientras dura el giro de un escape (borde, golpe
+// o empuje de costado), se corta y se ataca: no tiene sentido terminar de
+// evadir para recien despues buscarlo, si ya lo tiene enfrente. Cuenta solo
+// un eco NUEVO (posterior al inicio del giro; la retencion de 80 ms del
+// sonar podria traer uno viejo) sostenido DURACION_DETECCION_GIRO_MS, para
+// que un eco suelto no corte el escape por error.
+const unsigned long DURACION_DETECCION_GIRO_MS = 60;
+bool escapeInterrumpidoPorSonar = false;
+
+// ── Levantamiento: retroceder hasta volver a apoyar (cambio 33) ──
+// Pedido del usuario (26-09): la evasion era corta, 280 ms fijos de
+// retroceso. Ahora retrocede hasta que el IMU diga que la base volvio a
+// apoyar entera en el dojo: inclinacion filtrada bajo INCLINACION_SALIDA_DEG
+// sostenida PLANO_SOSTENIDO_MS. Con un minimo (salir de la rampa aunque la
+// inclinacion baje enseguida) y un tope (por si el IMU no lo confirma).
+const unsigned long RETROCESO_MIN_LEVANTADO_MS = 250;
+const unsigned long RETROCESO_MAX_LEVANTADO_MS = 1500;
+const unsigned long PLANO_SOSTENIDO_MS = 150;
 // Antes 30 grados/s, lo que apagaba la deteccion durante toda la
 // busqueda (~90 grados/s). Ese valor respondia al metodo viejo (solo eje
 // Z), donde la vibracion del giro parecia una caida de g. Con el angulo
@@ -109,7 +139,7 @@ const unsigned long DURACION_ROTACION_FORZADA_MS = 100;
 const float Z_GOLPE_INCLINADO_G = 0.05;
 
 // ── Reaccion al levantamiento ──
-const unsigned long RETROCESO_LEVANTADO_MS = 280;
+// El retroceso ya no es un tiempo fijo (eran 280 ms): ver el cambio 33.
 const float GIRO_LEVANTADO_GRADOS = 90.0;
 
 Adafruit_LSM6DS3TRC lsmGiro;
@@ -301,8 +331,11 @@ bool leerIMU() {
 //  formula sirve marcha atras, porque siempre agrega una rotacion hacia
 //  la derecha independiente de la velocidad base. Sin giroscopio o sin
 //  el signo aprendido, corr = 0 y es motores(vel, vel).
-// ────────────────────────────────────────────
-void avanzarRecto(float vel) {
+//  objetivoDps (cambio 31): en vez de corregir hacia "sin girar", corrige
+//  hacia esa velocidad angular. TRACK la alterna +-TANTEO_DPS para
+//  tantear de lado a lado sin dejar de avanzar; el resto llama con 0.0
+//  (recto de verdad).
+void avanzarRecto(float vel, float objetivoDps) {
   if (vel != ordenIzq || vel != ordenDer) {
     tUltimoCambioMotores = millis();
     integralRecta = 0;
@@ -314,7 +347,7 @@ void avanzarRecto(float vel) {
 
   float corr = 0;
   if (giroListo && signoGiroIzq != 0 && vel != 0) {
-    float e = imuDps * signoGiroIzq;   // > 0: derivando a la izquierda
+    float e = imuDps * signoGiroIzq - objetivoDps;   // > 0: derivando a la izquierda de lo pedido
     dpsFiltrado += FILTRO_DPS_RECTO * (e - dpsFiltrado);
     integralRecta = constrain(integralRecta + e * imuDt, -INTEGRAL_MAX_RECTO, INTEGRAL_MAX_RECTO);
     corr = constrain(KP_RECTO * dpsFiltrado + KI_RECTO * integralRecta, -CORRECCION_MAX_RECTO, CORRECCION_MAX_RECTO);
@@ -331,8 +364,14 @@ void avanzarRecto(float vel) {
 //  oscilacion). desacelerar=true baja la velocidad en los ultimos
 //  ZONA_DESACELERACION_GRADOS para no pasarse (giro de ronda);
 //  false mantiene la velocidad todo el giro (escapes).
+//  vigilarSonar=true (los giros de escape del borde, cambio 30): si el
+//  sonar ve al rival mas cerca que DIST_ATAQUE, sostenido
+//  DURACION_DETECCION_GIRO_MS, corta el giro y deja escapeInterrumpido
+//  PorSonar en true - nunca tiene sentido terminar de evadir el borde
+//  para recien despues buscarlo, si ya lo tiene enfrente. El loop()
+//  ataca en la vuelta siguiente, con su prioridad normal.
 // ────────────────────────────────────────────
-void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
+void girarGradosGiro(float grados, float velocidad, bool desacelerar, bool vigilarSonar) {
   if (!giroListo) return;
 
   int sentido = (grados > 0) ? 1 : -1;
@@ -340,6 +379,8 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
   float acumulado = 0;
   float vel = velocidad;
   unsigned long tInicio = millis();
+  unsigned long tInicioDeteccion = 0;
+  escapeInterrumpidoPorSonar = false;
 
   leerIMU();  // fija la base de tiempo: lo que paso antes no cuenta
 
@@ -357,7 +398,7 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
   unsigned long tVentana = tInicio;
   float acumuladoVentana = 0;
 
-  while (acumulado < objetivo - MARGEN_ERROR_GRADOS && !bordeNuevo) {
+  while (acumulado < objetivo - MARGEN_ERROR_GRADOS && !bordeNuevo && !escapeInterrumpidoPorSonar) {
     if (millis() - tInicio > TIMEOUT_GIRO_MS) {
       evento("GIRO_TIMEOUT", String(acumulado, 1) + ";" + String(objetivo, 1));
       break;
@@ -366,6 +407,15 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 
     motores(vel * sentido, -vel * sentido);
     if (leerIMU()) acumulado += fabs(imuDps) * imuDt;
+
+    if (vigilarSonar) {
+      if (medirDistanciaCm() < DIST_ATAQUE && tUltimoEco >= tInicio) {
+        if (tInicioDeteccion == 0) tInicioDeteccion = millis();
+        if (millis() - tInicioDeteccion >= DURACION_DETECCION_GIRO_MS) escapeInterrumpidoPorSonar = true;
+      } else {
+        tInicioDeteccion = 0;
+      }
+    }
 
     // Trabado: en VENTANA_GIRO_TRABADO_MS no giro ni GIRO_MINIMO_VENTANA
     // grados (el rival lo sujeta, o esta en el aire). Seguir mandando el
@@ -400,9 +450,57 @@ void girarGradosGiro(float grados, float velocidad, bool desacelerar) {
 
   // objetivo;logrado;ms -> con esto se mide cuanto tarda un giro real.
   evento("GIRO", String(grados, 0) + ";" + String(acumulado, 1) + ";" + String(millis() - tInicio));
-  // El loop() atiende el borde en la vuelta siguiente, con su prioridad
-  // normal; el anti-bucle cuenta ese escape como cualquier otro.
+  // El loop() atiende el borde o el ataque en la vuelta siguiente, con su
+  // prioridad normal; el anti-bucle cuenta ese escape como cualquier otro.
   if (bordeNuevo) evento("GIRO_CORTADO", String(acumulado, 1) + ";" + String(objetivo, 1));
+  if (escapeInterrumpidoPorSonar) evento("GIRO_INTERRUMPIDO_SONAR", String(acumulado, 1) + ";" + String(objetivo, 1));
+}
+
+// ────────────────────────────────────────────
+//  MOVIMIENTO VIGILADO, CON SONAR (cambio 30)
+//  Igual que moverVigilando(), y ademas corta el movimiento (dejando
+//  escapeInterrumpidoPorSonar en true) si el sonar ve al rival mas cerca
+//  que DIST_ATAQUE, sostenido DURACION_DETECCION_GIRO_MS. Se usa en los
+//  tramos de escape que terminan mirando hacia donde se avanza (golpe,
+//  empuje perdido, borde): no tiene sentido terminar de escapar para
+//  recien despues buscarlo, si ya lo tiene enfrente.
+// ────────────────────────────────────────────
+bool moverVigilandoSonar(float izq, float der, unsigned long ms, int vigilar) {
+  escapeInterrumpidoPorSonar = false;
+  unsigned long tInicioDeteccion = 0;
+  actualizarBorde();
+  bool yaBlanco[4];
+  for (int i = 0; i < 4; i++) yaBlanco[i] = bordeDet[i];
+
+  unsigned long t0 = millis();
+  while (millis() - t0 < ms) {
+    if (izq == der) avanzarRecto(izq, 0.0); else motores(izq, der);
+    leerIMU();
+#if TELEMETRIA
+    leerBorde();
+#else
+    actualizarBorde();
+#endif
+    if (vigilar == VIGILAR_ADELANTE) {
+      if ((bordeDet[0] && !yaBlanco[0]) || (bordeDet[1] && !yaBlanco[1])) return true;
+    } else if (vigilar == VIGILAR_ATRAS) {
+      if ((bordeDet[2] && !yaBlanco[2]) || (bordeDet[3] && !yaBlanco[3])) return true;
+    } else if (vigilar == VIGILAR_CUALQUIERA) {
+      for (int i = 0; i < 4; i++) if (bordeDet[i] && !yaBlanco[i]) return true;
+    }
+    if (medirDistanciaCm() < DIST_ATAQUE && tUltimoEco >= t0) {
+      if (tInicioDeteccion == 0) tInicioDeteccion = millis();
+      if (millis() - tInicioDeteccion >= DURACION_DETECCION_GIRO_MS) {
+        evento("ESCAPE_INTERRUMPIDO_SONAR", String(millis() - t0) + ";" + String(ultimaDistValida, 1));
+        escapeInterrumpidoPorSonar = true;
+        return false;
+      }
+    } else {
+      tInicioDeteccion = 0;
+    }
+    telemetria();
+  }
+  return false;
 }
 
 // ────────────────────────────────────────────
@@ -508,16 +606,26 @@ void maniobraEscapePreciso(String direccion) {
   setPixelColor(255, 0, 255);
   estadoTel = "BORDE";
 
+  // Los giros de escape de los casos de FRENTE y de COSTADO vigilan el
+  // sonar (cambio 30): si el rival aparece mientras gira, corta y el loop
+  // ataca en la vuelta siguiente. El retroceso previo no se corta: primero
+  // hay que salir de la linea. Los casos de ATRAS no: ahi el rival suele
+  // estar justo enfrente empujandonos contra el borde, y el pivote es
+  // justamente para salir de su linea de empuje (el simulador lo mostro:
+  // con el corte, contra uno 20 % mas fuerte se perdian las dos peleas).
+  escapeInterrumpidoPorSonar = false;
   if (direccion == "FRENTE") {
-    moverVigilando(1.0, 1.0, 180, VIGILAR_ATRAS);
+    moverVigilando(1.0, 1.0, RETROCESO_ESCAPE_FRENTE_MS, VIGILAR_ATRAS);
     detener();
     bool izq = emergencia ? girarIzquierda : elegirSentidoGiro();
-    girarConFallback(izq ? (200.0 + extra) : -(200.0 + extra));
+    girarConFallbackVigilando(izq ? (ANGULO_ESCAPE_FRENTE + extra) : -(ANGULO_ESCAPE_FRENTE + extra));
   }
   else if (direccion == "ATRAS") {
     // Si se repite (anti-bucle), lo estan empujando de espaldas contra el
     // borde: pivotear 45 grados lo saca de la linea de empuje antes de
-    // avanzar. En el simulador era la unica derrota que quedaba.
+    // avanzar. En el simulador era la unica derrota que quedaba. Sin corte
+    // por sonar: el rival esta enfrente, y el pivote es para salir de su
+    // linea de empuje.
     if (emergencia) girarConFallback(girarIzquierda ? 45.0 : -45.0);
     moverVigilando(-1.0, -1.0, 200, VIGILAR_ADELANTE);  // el dojo esta adelante; ya mira hacia adentro
   }
@@ -528,15 +636,19 @@ void maniobraEscapePreciso(String direccion) {
     bool haciaIzq = (direccion == "EMPUJE_DERECHA");
     moverVigilando(haciaIzq ? -0.25 : -VEL_ATAQUE,
                    haciaIzq ? -VEL_ATAQUE : -0.25, 300, VIGILAR_ADELANTE);
-    girarConFallback(haciaIzq ? (68.0 + extra) : -(68.0 + extra));
+    girarConFallbackVigilando(haciaIzq ? (68.0 + extra) : -(68.0 + extra));
     // Pivotear en el lugar no saca los sensores de la linea: despues del
-    // giro hay que trasladarse hacia adentro (visto el 2026-09-20).
-    moverVigilando(-VEL_ATAQUE, -VEL_ATAQUE, 150, VIGILAR_ADELANTE);
+    // giro hay que trasladarse hacia adentro (visto el 2026-09-20). Si el
+    // sonar corto el giro, el loop ya va a atacar: no hace falta.
+    if (!escapeInterrumpidoPorSonar) moverVigilando(-VEL_ATAQUE, -VEL_ATAQUE, 150, VIGILAR_ADELANTE);
   }
   else if (direccion == "FRENTE_IZQ" || direccion == "FRENTE_DER") {
+    // Un solo sensor frontal: el borde esta adelante y de costado. Antes
+    // giraba 90 y quedaba paralelo a la linea; ahora da media vuelta.
     bool haciaDer = (direccion == "FRENTE_IZQ");
-    moverVigilando(1.0, 1.0, 120, VIGILAR_ATRAS);
-    girarConFallback(haciaDer ? -(90.0 + extra) : (90.0 + extra));
+    moverVigilando(1.0, 1.0, RETROCESO_ESCAPE_LATERAL_MS, VIGILAR_ATRAS);
+    detener();
+    girarConFallbackVigilando(haciaDer ? -(ANGULO_ESCAPE_LATERAL + extra) : (ANGULO_ESCAPE_LATERAL + extra));
   }
   else if (direccion == "ATRAS_IZQ" || direccion == "ATRAS_DER") {
     bool haciaDer = (direccion == "ATRAS_IZQ");
@@ -552,15 +664,54 @@ void maniobraEscapePreciso(String direccion) {
 //  REACCION AL LEVANTAMIENTO: retroceder y reposicionar
 //  Retrocede (vigilando el borde trasero) para salir de la rampa,
 //  despues gira hacia donde estaba el rival para no volver a encarar
-//  el mismo angulo a ciegas.
+//  el mismo angulo a ciegas. Ese giro NO se corta por el sonar: el rival
+//  tiene rampa, y volver a entrarle de frente es volver a subirse.
 // ────────────────────────────────────────────
+
+// Retrocede hasta que el IMU confirme que la base volvio a apoyar entera
+// en el dojo (cambio 33): inclinacion filtrada bajo INCLINACION_SALIDA_DEG
+// sostenida PLANO_SOSTENIDO_MS, despues de RETROCESO_MIN_LEVANTADO_MS y
+// antes de RETROCESO_MAX_LEVANTADO_MS. Vigila el borde de atras.
+void retrocederHastaApoyar() {
+  actualizarBorde();
+  bool yaBlanco[4];
+  for (int i = 0; i < 4; i++) yaBlanco[i] = bordeDet[i];
+
+  unsigned long t0 = millis();
+  unsigned long tPlano = 0;
+  while (millis() - t0 < RETROCESO_MAX_LEVANTADO_MS) {
+    avanzarRecto(1.0, 0.0);
+    leerIMU();
+#if TELEMETRIA
+    leerBorde();
+#else
+    actualizarBorde();
+#endif
+    if ((bordeDet[2] && !yaBlanco[2]) || (bordeDet[3] && !yaBlanco[3])) {
+      evento("LEVANTADO_APOYO", String(millis() - t0) + ";borde;" + String(inclinacionFiltrada, 1));
+      return;
+    }
+    if (inclinacionFiltrada < INCLINACION_SALIDA_DEG) {
+      if (tPlano == 0) tPlano = millis();
+    } else {
+      tPlano = 0;
+    }
+    if (millis() - t0 >= RETROCESO_MIN_LEVANTADO_MS && tPlano != 0 && millis() - tPlano >= PLANO_SOSTENIDO_MS) {
+      evento("LEVANTADO_APOYO", String(millis() - t0) + ";plano;" + String(inclinacionFiltrada, 1));
+      return;
+    }
+    telemetria();
+  }
+  evento("LEVANTADO_APOYO", String(millis() - t0) + ";tope;" + String(inclinacionFiltrada, 1));
+}
+
 void reaccionLevantado() {
   bool izq = elegirSentidoGiro();
   evento("LEVANTADO_REACCION", izq ? "giro_izq" : "giro_der");
   setPixelColor(255, 0, 128);
   estadoTel = "LEVANTADO";
 
-  moverVigilando(1.0, 1.0, RETROCESO_LEVANTADO_MS, VIGILAR_ATRAS);
+  retrocederHastaApoyar();
   detener();
   girarConFallback(izq ? GIRO_LEVANTADO_GRADOS : -GIRO_LEVANTADO_GRADOS);
 
@@ -608,7 +759,9 @@ void reaccionEmpujeLateral() {
   setPixelColor(0, 255, 128);
   estadoTel = "EMPUJADO";
 
-  moverVigilando(-VEL_ATAQUE, -VEL_ATAQUE, ESCAPE_ADELANTE_MS, VIGILAR_ADELANTE);
+  // Cambio 32: el escape vigila el sonar. Si el rival aparece adelante,
+  // deja de escapar y el loop ataca en la vuelta siguiente.
+  moverVigilandoSonar(-VEL_ATAQUE, -VEL_ATAQUE, ESCAPE_ADELANTE_MS, VIGILAR_ADELANTE);
 
   tInicioRotForzada = 0;
   golpePendiente = false;
