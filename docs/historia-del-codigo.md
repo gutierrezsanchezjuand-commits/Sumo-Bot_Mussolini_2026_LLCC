@@ -1,6 +1,6 @@
 # Linaje del código: qué se ganó y qué se perdió al pasar a Arduino
 
-El `NOTAS.md` del repo propio (los repos de referencia) guarda el **v5 en
+El [`v5_circuitpython.py`](../versiones-anteriores/circuitpython/v5_circuitpython.py) (antes `NOTAS.md`) guarda el **v5 en
 CircuitPython**, anterior al código Arduino actual. Comparando los dos aparece
 que el port **no fue una traducción 1:1**: se ganaron cosas, pero también se
 perdieron mejoras que ya habían sido probadas y justificadas por escrito.

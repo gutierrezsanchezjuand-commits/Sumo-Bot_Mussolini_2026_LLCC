@@ -1,6 +1,10 @@
+> **Nota (27-09-2026):** este texto vino de otro repositorio. Los `master_code.py`, `master_code2.py` y
+> `master_code3.py` que nombra son, en esta carpeta, `gemini_code1.py`, `gemini_code2.py` y
+> `gemini_code3.py`. El `sumobot_v6.py` que menciona no está en este repositorio.
+
 # ✅ Bugs corregidos
 
-Estos 3 archivos ya fueron corregidos (versión actual en esta misma carpeta). La versión oficial de competencia sigue siendo [`firmware/oficial/sumobot_v6.py`](../oficial/sumobot_v6.py) — estos son una base alternativa/histórica ya funcional, útil como referencia o punto de partida para nuevas estrategias.
+Estos 3 archivos ya fueron corregidos (versión actual en esta misma carpeta). La versión oficial de competencia sigue siendo `firmware/oficial/sumobot_v6.py` — estos son una base alternativa/histórica ya funcional, útil como referencia o punto de partida para nuevas estrategias.
 
 ## `master_code.py`
 - **Pines del sonar invertidos** → corregido a `HCSR04(board.IO25, board.IO26)`.

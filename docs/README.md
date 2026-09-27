@@ -7,7 +7,7 @@ fechadas: cuando algo cambió, la nota dice qué había antes y por qué se camb
 
 1. [Hardware](hardware.md) — la placa, los sensores, los pines y lo que se midió de cada uno.
 2. [Arquitectura del firmware](firmware-arquitectura.md) — cómo está armado el código de
-   `code2026_Arduino/sumo_arduino/`: `setup()`, el `loop()` y sus prioridades, los motores, el
+   [`mussolini/`](../mussolini): `setup()`, el `loop()` y sus prioridades, los motores, el
    borde, el sonar, el ataque y el módulo del IMU.
 3. [Control por giroscopio](giroscopio.md) — giros por ángulo, avance recto corregido,
    levantamiento, golpes y empujes laterales.

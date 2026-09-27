@@ -1,6 +1,6 @@
 # Hardware
 
-Placa **ESP32** (aunque la carpeta del sketch se llame `sumo_arduino`). Se confirma
+Placa **ESP32**. Se confirma
 por los GPIO usados y por `ledcAttach(pin, freq, res)`, que es la firma del core
 ESP32 **3.x** — con el core 2.x esa llamada no compila.
 

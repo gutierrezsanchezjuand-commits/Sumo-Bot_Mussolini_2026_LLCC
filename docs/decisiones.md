@@ -2,7 +2,7 @@
 
 Cambios ya tomados y **por qué**, para no volver a discutirlos ni deshacerlos por
 error. Los primeros cinco vienen documentados en el encabezado de
-`sumo_arduino.ino` como resultado de pruebas reales sobre el robot.
+`mussolini.ino` como resultado de pruebas reales sobre el robot.
 
 ## PWM a 20 kHz en vez de `analogWrite()`
 
@@ -270,6 +270,9 @@ recomendara. **No deshacer sin volver a correr las baterías.**
   cambio que más pesa, de 42 a 54 pts.
 - **Encarar el golpe** en vez de huir hacia adelante: el ataque de costado
   deja de ganarnos. Depende del signo del eje X del IMU (prueba 13a).
+  **Revertido el 25-09 (cambio 28)**: en el robot el arranque propio se leía
+  como golpe por detrás (13 medias vueltas en 93 s). Quedó el escape hacia
+  adelante, y desde el 26-09 se corta si el sonar ve al rival (cambio 32).
 - **Una inclinación no es un golpe**: si Z cae más de 0.05 g, el "golpe" es
   el chasis levantándose.
 - **Giro trabado**: cortar a los 300 ms sin avance, no esperar los 3 s.
@@ -281,3 +284,26 @@ recomendara. **No deshacer sin volver a correr las baterías.**
   romper empates (empeoró), cambiar el flanqueo, empuje final en la línea.
 - **Las velocidades no se tocaron**: sigue valiendo la decisión del 23-09.
   La velocidad recta del simulador no está medida.
+
+## Barrido amplio al perseguir: probado y descartado (2026-09-27)
+
+Pedido del usuario: que a 40–100 cm no avance derecho, sino que gire hacia
+los lados para confirmar dónde está el rival. El tanteo de ±3° (cambio 31) ya
+hacía eso en chico; se probaron barridos más amplios, en zigzag, con el
+giroscopio marcando el centro del eco. Mismas peleas para todas las
+variantes ([simulador](../simulador/README.md), física 3.1):
+
+| Variante | General (30 peleas) | Foco (24 peleas) |
+|---|---|---|
+| **Tanteo ±3° (el actual)** | **50 pts**, 4 derrotas | **28 pts**, 6 derrotas |
+| ±45° | 45, 5 derrotas (con 60 peleas: 86 contra 94) | 23, 7 |
+| ±20° | 40, 6 | 20, 8 |
+| ±10°, rueda exterior 0.8 | 45, 5 | 23, 7 |
+| ±10° a motores al máximo (exterior 1.0) | 42–44, 6–8 | 21–23, 7–9 |
+
+Todas salen peor. Al apartar el frente del rival, uno que embiste llega en
+ángulo o de costado (en una pelea de ±45°: golpe lateral de 1.07 g a los 2 s
+y afuera). **Límite de la prueba**: el simulador no tiene ecos falsos (gente u
+objetos fuera del dojo), así que mide el costo de barrer pero no el beneficio
+de confirmar. Si en el dojo real el robot persigue cosas que no son el rival,
+vale la pena volver a mirarlo con esa captura.

@@ -1,17 +1,17 @@
 # Arquitectura del código
 
-Firmware en [`code2026_Arduino/sumo_arduino/`](../code2026_Arduino/sumo_arduino).
+Firmware en [`mussolini/`](../mussolini).
 
 **Dos archivos `.ino` en la misma carpeta = un solo sketch.** El IDE
 concatena las pestañas (la principal primero, el resto en orden alfabético)
 y genera prototipos de las **funciones** automáticamente — pero **no de las
 variables**. Por eso todo el estado compartido del IMU (`imuDps`,
 `rumboDeg`, `inclinacionDeg`, `giroListo`, …) está declarado en
-`sumo_arduino.ino` aunque lo escriba `giroscopio_control.ino`.
+`mussolini.ino` aunque lo escriba `giroscopio_control.ino`.
 
 | Archivo | Rol |
 |---|---|
-| `sumo_arduino.ino` | motores, sensores, calibración, ofensiva, anti-bucle, rumbo del rival, `setup()`/`loop()` |
+| `mussolini.ino` | motores, sensores, calibración, ofensiva, anti-bucle, rumbo del rival, `setup()`/`loop()` |
 | `giroscopio_control.ino` | IMU: lectura validada, giro por ángulo, levantamiento, golpe, rotación forzada, y todas las reacciones |
 
 Otra trampa del generador de prototipos: no usar tipos propios (`enum`,
@@ -282,7 +282,7 @@ aparece adelante, deja de escapar (`ESCAPE_INTERRUMPIDO_SONAR`) y el loop
 ataca. ("Encarar" —girar hacia el lado del golpe— se probó el 25-09 y se
 quitó: en el robot el arranque propio se leía como golpe por detrás.)
 
-**`MODO_SIMPLE`** (`#define` en `sumo_arduino.ino`, 0 por defecto): en 1,
+**`MODO_SIMPLE`** (`#define` en `mussolini.ino`, 0 por defecto): en 1,
 `detectarLevantado()`, `rotacionForzada()` y `detectarEmpujeLateral()`
 devuelven siempre falso. Seguro de torneo.
 

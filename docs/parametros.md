@@ -274,7 +274,7 @@ empuje.
 | ~~`EMPUJE_MAX_MS`~~ | ~~4000 ms~~ | **eliminado el 25-09** (cambio 21): soltaba ganando o perdiendo | — |
 | `ANGULO_FLANQUEO` | 60° | | (6) |
 | `RETROCESO_FLANQUEO_MS` / `AVANCE_FLANQUEO_MS` | 200 / 250 ms | | (6) |
-| `ESCAPE_ADELANTE_MS` | 350 ms | reacción a la rotación forzada fuera de ataque (el golpe ahora encara) | (7) |
+| `ESCAPE_ADELANTE_MS` | 350 ms | reacción al golpe o a la rotación forzada fuera de ataque: adelante a fondo; se corta si el sonar ve al rival (cambio 32) | (7), (14d) |
 
 ## Anti-bucle
 
@@ -316,16 +316,16 @@ Elegidas y calificadas en el [Simulador](../simulador/README.md); la prueba en e
 
 | Constante | Valor | Qué es | Prueba |
 |---|---|---|---|
-| `ANGULO_MINIMO_ENCARAR` | 30° | golpe casi de frente: no se gira, el sonar ya lo ve | (13a) |
+| ~~`ANGULO_MINIMO_ENCARAR`~~ | ~~30°~~ | **eliminado el 25-09 junto con encarar** (cambio 28) | — |
 | `Z_GOLPE_INCLINADO_G` | 0.05 g | si Z cayó más que esto en el golpe, es el chasis inclinándose (a 20° cae 0.06) | (13b) |
 | `VENTANA_GIRO_TRABADO_MS` | 300 ms | ventana para medir si un giro avanza | (13d) |
 | `GIRO_MINIMO_VENTANA` | 8° | menos que esto en la ventana = trabado (un pivote sano a 0.75 hace 27+) | (13d) |
 | `BLANCO_MAX_FRACCION` | 0.25 | blanco por encima de esta fracción del negro = sensor degradado | (13f) |
 | `MODO_SIMPLE` | 0 | `#define`: 1 apaga levantamiento, golpe y rotación forzada | — |
 
-Riesgo a vigilar: **el eje X del IMU** (derecha) no está medido, se dedujo de
-Z arriba y Y adelante. Si en 13a el robot gira al revés del golpe, hay que
-invertir el signo de `golpeAx` en `reaccionEmpujeLateral()`.
+Sin encarar (cambio 28), **el eje X del IMU ya no decide nada**: la reacción
+al golpe es siempre hacia adelante, cortada por el sonar si el rival aparece
+enfrente (cambio 32). El riesgo que había acá (X sin medir) desapareció con él.
 
 ## Medido el 2026-09-26 (capturas + simulador, física 3)
 

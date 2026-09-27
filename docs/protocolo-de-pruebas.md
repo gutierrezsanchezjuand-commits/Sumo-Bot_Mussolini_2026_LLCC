@@ -60,7 +60,7 @@ terminar cada prueba.
 
 **Desde el IDE de Arduino 2.x:**
 
-1. Abrir `sumo_arduino/sumo_arduino.ino` (el IDE
+1. Abrir `mussolini/mussolini.ino` (el IDE
    abre las dos pestañas solo).
 2. Placa: **ESP32 Dev Module**. Puerto: el del CH340 (COM7 el 20-09).
 3. Verificar que en Herramientas la versión del core esp32 sea **3.x** (se
@@ -108,7 +108,7 @@ Si el robot está cableado al revés, los escapes de un solo sensor giran
    En el Serial: `E,...,ESCAPE,FRENTE_IZQ`.
 
 **Si gira a la izquierda** (hacia el blanco): los lados están invertidos.
-Intercambiar los pines de `MOTOR1` y `MOTOR2` en `sumo_arduino.ino` (está
+Intercambiar los pines de `MOTOR1` y `MOTOR2` en `mussolini.ino` (está
 marcado con ⚠ arriba de los `#define`), volver a subir, repetir. No tocar
 nada más.
 
@@ -207,9 +207,10 @@ Si dispara `rotado` con solo empujar recto (sin girarlo), subir
 1. Robot buscando (sin rival).
 2. Empujarlo de costado con la mano, seco.
 3. Esperado: `GOLPE,<g>;<dax>;<day>;BUSCA` y de inmediato `EMPUJE_LATERAL`,
-   LED verde-agua, arranca hacia adelante 350 ms. **Con el firmware del plan
-   (25-09) cambia**: en vez de avanzar, gira hacia el lado del golpe. Ver la
-   prueba 13a.
+   LED verde-agua, arranca hacia adelante 350 ms. Si el rival aparece
+   enfrente mientras escapa, el escape se corta y ataca (cambio 32, prueba
+   14d). (Girar hacia el golpe, "encarar", se probó el 25-09 y se quitó:
+   prueba 13a.)
 4. También: mientras avanza (`AVANCE`), girarlo con la mano sin golpe →
    `EMPUJE_LATERAL` por rotación forzada.
 
@@ -230,7 +231,7 @@ calibrar) — no es el firmware.
 
 ## 10. Antes de competir
 
-1. `#define TELEMETRIA 0` en `sumo_arduino.ino`.
+1. `#define TELEMETRIA 0` en `mussolini.ino`.
 2. Compilar y subir de nuevo.
 3. Anotar en [Parametros a calibrar](parametros.md) los valores finales de todo lo que se
    ajustó, y en la bitácora la fecha.
@@ -241,7 +242,9 @@ Los cambios 21–27 están calificados en el [Simulador](../simulador/README.md)
 es lo que hay que ver en el robot real, con `TELEMETRIA 1` para leer los
 eventos. Lo que el simulador predice va entre paréntesis.
 
-**13a. Encarar el golpe (y confirmar el eje X del IMU).** Robot buscando,
+**13a. Encarar el golpe (y confirmar el eje X del IMU).** *Obsoleta: encarar
+falló esta prueba el 25-09 (se disparaba solo) y se quitó con el cambio 28.
+Queda como registro.* Robot buscando,
 sin rival. Golpe seco con la mano **por la izquierda**: debe salir `GOLPE`
 con `dax > 0`, LED verde agua, `ENCARAR,~90` y girar **a la izquierda**.
 Repetir por la derecha (`dax < 0`, gira a la derecha) y por detrás (`day > 0`,
