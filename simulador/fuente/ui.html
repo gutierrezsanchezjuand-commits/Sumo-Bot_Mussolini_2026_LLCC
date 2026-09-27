@@ -1,0 +1,487 @@
+<meta charset="utf-8">
+<title>Simulador de sumobot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Saira+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E6E9ED;
+  --panel: #F7F8FA;
+  --panel-2: #EDF0F3;
+  --ink: #17212B;
+  --ink-2: #4C5967;
+  --ink-3: #778391;
+  --line: #CBD2DA;
+  --line-2: #DDE2E8;
+  --accent: #36536D;
+  --accent-soft: rgba(54, 83, 109, 0.12);
+  --accent-ink: #FFFFFF;
+  --floor: #C4CAD1;
+  --floor-grid: rgba(23, 33, 43, 0.07);
+  --cone: 54, 83, 109;
+  --good: #2D7A4B;
+  --warn: #9A6200;
+  --bad: #B3261E;
+  --shadow: 0 1px 2px rgba(20, 30, 40, 0.06), 0 6px 20px rgba(20, 30, 40, 0.06);
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --sans: "Saira Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1318; --panel: #151B22; --panel-2: #1B232C; --ink: #E2E7ED; --ink-2: #A3AEBA; --ink-3: #75818E;
+    --line: #283340; --line-2: #202A35; --accent: #9DBBD6; --accent-soft: rgba(157, 187, 214, 0.14); --accent-ink: #0E1318;
+    --floor: #232B34; --floor-grid: rgba(226, 231, 237, 0.06); --cone: 157, 187, 214;
+    --good: #5DBB84; --warn: #E0A33A; --bad: #F07167;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1318; --panel: #151B22; --panel-2: #1B232C; --ink: #E2E7ED; --ink-2: #A3AEBA; --ink-3: #75818E;
+  --line: #283340; --line-2: #202A35; --accent: #9DBBD6; --accent-soft: rgba(157, 187, 214, 0.14); --accent-ink: #0E1318;
+  --floor: #232B34; --floor-grid: rgba(226, 231, 237, 0.06); --cone: 157, 187, 214;
+  --good: #5DBB84; --warn: #E0A33A; --bad: #F07167;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.4; }
+* { box-sizing: border-box; }
+button, select, input, textarea { font: inherit; color: inherit; }
+code { font-family: var(--mono); font-size: 0.9em; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 410px); gap: 14px; padding-inline: 16px; padding-block: 12px 18px; max-width: 1500px; margin: 0 auto; }
+header.barra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.marca { display: flex; flex-direction: column; gap: 1px; margin-right: auto; min-width: 0; }
+.marca h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.01em; text-wrap: balance; }
+.marca h1 span { color: var(--ink-3); font-weight: 500; }
+.marca .fw { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.mandos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; letter-spacing: 0.02em; min-height: 36px; }
+.btn:hover { border-color: var(--ink-3); }
+.btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, .seg button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.primario { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primario:hover { opacity: 0.9; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn .ico { font-family: var(--mono); font-size: 13px; }
+.btn.chico { min-height: 30px; padding: 4px 10px; font-size: 13px; font-weight: 500; }
+select, input[type=number], input[type=text] { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 8px; min-height: 36px; }
+select { max-width: 100%; }
+.reloj { font-family: var(--mono); font-variant-numeric: tabular-nums; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; min-width: 118px; }
+.reloj b { font-size: 20px; font-weight: 600; }
+.reloj small { font-size: 11px; color: var(--ink-3); }
+
+.escena { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.lienzo { position: relative; width: min(100%, calc(100vh - 150px)); min-width: 280px; aspect-ratio: 1 / 1; margin-inline: auto; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); background: var(--floor); touch-action: none; }
+.lienzo canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hud { position: absolute; left: 12px; top: 10px; display: flex; gap: 8px; align-items: center; pointer-events: none; flex-wrap: wrap; max-width: calc(100% - 24px); }
+.chip { font-family: var(--mono); font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); letter-spacing: 0.03em; }
+.chip.estado { text-transform: uppercase; }
+.aviso { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-weight: 600; box-shadow: var(--shadow); max-width: calc(100% - 28px); text-align: center; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.aviso.fuera { border-color: var(--bad); color: var(--bad); }
+.aviso.victoria { border-color: var(--good); color: var(--good); }
+.pista { position: absolute; right: 12px; top: 10px; font-size: 12px; color: var(--ink-2); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; pointer-events: none; max-width: 52%; }
+
+.tablero { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.caja { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.caja.ancha { grid-column: 1 / -1; }
+.caja h2 { margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-2); }
+.fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fila label.txt { font-size: 13px; color: var(--ink-2); min-width: 64px; }
+.fila select.largo { flex: 1 1 200px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 6px 12px; cursor: pointer; font-weight: 600; min-height: 34px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+.nota { font-size: 12.5px; color: var(--ink-3); margin: 0; }
+.estado-prog { font-size: 13px; border-radius: 8px; padding: 8px 10px; background: var(--panel-2); border: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 4px; }
+.estado-prog.mal { border-color: var(--bad); }
+.estado-prog b.ok { color: var(--good); }
+.estado-prog b.mal { color: var(--bad); }
+.errores { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.errores li { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: baseline; }
+.errores button { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 1px 6px; cursor: pointer; }
+.errores li.aviso-t { color: var(--warn); }
+.protocolo { font-size: 13px; color: var(--ink-2); margin: 0; }
+.protocolo b { color: var(--ink); font-weight: 600; }
+.pruebas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pruebas .btn { justify-content: center; font-weight: 500; }
+.boot { font-family: var(--mono); letter-spacing: 0.08em; }
+.boot.apretado { background: var(--ink); color: var(--bg); }
+details > summary { cursor: pointer; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-2); list-style: none; display: flex; justify-content: space-between; gap: 8px; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after { content: "+"; font-family: var(--mono); }
+details[open] > summary::after { content: "−"; }
+.deslizador { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; font-size: 13px; }
+.deslizador input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.deslizador output { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.grid-fis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 16px; margin-top: 10px; }
+.pines { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 14px; margin-top: 10px; font-size: 13px; }
+.pines label { display: flex; flex-direction: column; gap: 3px; color: var(--ink-2); }
+.pines input[type=text] { font-family: var(--mono); font-size: 12.5px; min-height: 32px; width: 100%; }
+
+.lateral { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.led-panel { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+.led-grande { width: 58px; height: 58px; border-radius: 50%; border: 2px solid var(--line); background: #1b1f24; transition: box-shadow 60ms linear; }
+.led-info b { font-size: 20px; display: block; line-height: 1.1; }
+.led-info .rgb { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.led-info p { margin: 4px 0 0; font-size: 13.5px; color: var(--ink-2); }
+.cinta-wrap { display: flex; flex-direction: column; gap: 3px; }
+.cinta { width: 100%; height: 30px; display: block; border-radius: 6px; border: 1px solid var(--line); }
+.cinta-eje { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+
+.lecturas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dato { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dato span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.dato b { font-family: var(--mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.irs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.ir { display: grid; grid-template-columns: 26px 1fr 44px; gap: 6px; align-items: center; font-family: var(--mono); font-size: 11.5px; }
+.ir .barra { position: relative; height: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.ir .barra i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-3); }
+.ir .barra u { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--bad); }
+.ir.blanco .barra i { background: var(--warn); }
+.ir.blanco b { color: var(--warn); }
+.ir b { text-align: right; font-weight: 600; }
+
+.vars { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.vars td { border-bottom: 1px solid var(--line-2); padding: 3px 4px; vertical-align: top; }
+.vars td:first-child { color: var(--ink-2); white-space: nowrap; }
+.vars td:last-child { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.vars tr.cambio td:last-child { color: var(--accent); }
+.vars-wrap { max-height: 300px; overflow: auto; margin-top: 8px; }
+
+.resumen { display: flex; flex-wrap: wrap; gap: 6px; }
+.cuenta { font-family: var(--mono); font-size: 11.5px; padding: 2px 7px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--ink-2); }
+.cuenta b { color: var(--ink); }
+.filtros { display: flex; flex-wrap: wrap; gap: 6px; }
+.filtro { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; cursor: pointer; min-height: 28px; }
+.filtro[aria-pressed="false"] { opacity: 0.5; text-decoration: line-through; }
+.informe { list-style: none; margin: 0; padding: 0; max-height: min(56vh, 620px); overflow-y: auto; border-top: 1px solid var(--line-2); font-size: 13.5px; overscroll-behavior: contain; }
+.informe li { display: grid; grid-template-columns: 62px 14px 1fr; gap: 6px; padding: 5px 2px; border-bottom: 1px solid var(--line-2); align-items: start; }
+.informe li.sub { padding-left: 14px; }
+.informe li.sub .tit { font-weight: 500; }
+.informe .t { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; padding-top: 2px; text-align: right; }
+.informe .punto { width: 11px; height: 11px; border-radius: 50%; margin-top: 4px; border: 1px solid rgba(128, 128, 128, 0.55); }
+.informe .tit { font-weight: 600; overflow-wrap: anywhere; }
+.informe .det { color: var(--ink-2); font-size: 12.5px; display: block; overflow-wrap: anywhere; }
+.informe .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--ink-3); margin-right: 5px; text-transform: uppercase; }
+.informe li.k-fuera .tit { color: var(--bad); }
+.informe li.k-victoria .tit { color: var(--good); }
+.informe li.cortada .det { color: var(--warn); }
+.informe li.k-serial .tit { font-family: var(--mono); font-weight: 400; font-size: 12px; }
+.ocultar-led li.k-led, .ocultar-estado li.k-estado, .ocultar-arranque li.k-arranque, .ocultar-serial li.k-serial, .ocultar-maniobra li.k-maniobra, .ocultar-golpe li.k-golpe, .ocultar-evento li.k-evento { display: none; }
+.acciones-informe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+pre.serial { margin: 8px 0 0; max-height: 260px; overflow: auto; font-family: var(--mono); font-size: 11.5px; line-height: 1.45; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; white-space: pre; }
+.leyenda-lista { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.leyenda-lista li { display: grid; grid-template-columns: 16px 110px 1fr; gap: 8px; align-items: start; }
+.leyenda-lista i { width: 14px; height: 14px; border-radius: 50%; margin-top: 3px; border: 1px solid rgba(128, 128, 128, 0.55); }
+.leyenda-lista code { font-size: 11px; color: var(--ink-3); display: block; }
+.saber-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 8px; font-size: 13.5px; }
+.saber-grid h3 { margin: 0 0 2px; font-size: 13px; }
+.saber-grid ul { margin: 0; padding-left: 18px; color: var(--ink-2); }
+.copiado { font-size: 12px; color: var(--good); }
+textarea.respaldo { width: 100%; height: 120px; font-family: var(--mono); font-size: 11px; }
+
+.eval-opciones { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.progreso { height: 8px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line-2); overflow: hidden; }
+.progreso i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 120ms linear; }
+.tabla-eval { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabla-eval th, .tabla-eval td { border-bottom: 1px solid var(--line-2); padding: 5px 6px; text-align: left; }
+.tabla-eval th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); font-weight: 700; }
+.tabla-eval td.res { font-family: var(--mono); letter-spacing: 0.08em; }
+.tabla-eval .G { color: var(--good); font-weight: 700; } .tabla-eval .P { color: var(--bad); font-weight: 700; } .tabla-eval .E { color: var(--ink-2); }
+.eval-total { font-size: 15px; }
+.eval-total b { font-size: 20px; }
+
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); padding: 0; width: min(980px, calc(100vw - 24px)); max-height: calc(100vh - 32px); box-shadow: var(--shadow); }
+dialog::backdrop { background: rgba(10, 14, 18, 0.55); }
+.dlg { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; max-height: calc(100vh - 34px); }
+.dlg h2 { margin: 0; font-size: 16px; }
+.dlg .fila { justify-content: space-between; }
+.editor { position: relative; display: grid; grid-template-columns: auto 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel-2); min-height: 280px; height: min(62vh, 640px); }
+.editor pre.nums { margin: 0; padding: 8px 6px; text-align: right; color: var(--ink-3); font-family: var(--mono); font-size: 12px; line-height: 1.5; user-select: none; overflow: hidden; background: var(--panel); border-right: 1px solid var(--line-2); }
+.editor textarea { border: 0; resize: none; padding: 8px 10px; font-family: var(--mono); font-size: 12px; line-height: 1.5; background: transparent; white-space: pre; overflow: auto; tab-size: 2; width: 100%; height: 100%; }
+.editor textarea:focus-visible { outline: none; }
+@media (max-width: 1020px) {
+  .app { grid-template-columns: 1fr; }
+  .lienzo { width: min(100%, 720px); }
+  .informe { max-height: 60vh; }
+}
+@media (prefers-reduced-motion: reduce) { .led-grande, .progreso i { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="barra">
+    <div class="marca">
+      <h1>Simulador de sumobot <span>· kit IdeaBoard (ESP32)</span></h1>
+      <div class="fw" id="fw">—</div>
+    </div>
+    <div class="mandos">
+      <button class="btn primario" id="bIniciar" type="button"><span class="ico" id="icoIniciar">▶</span><span id="txtIniciar">Encender</span></button>
+      <button class="btn" id="bReiniciar" type="button"><span class="ico">↺</span>Reiniciar</button>
+      <button class="btn" id="bPaso" type="button" title="Avanza 20 ms de simulación"><span class="ico">⇥</span>20 ms</button>
+      <select id="selVel" aria-label="Velocidad de la simulación">
+        <option value="0.1">× 0.1</option><option value="0.25">× 0.25</option><option value="0.5">× 0.5</option>
+        <option value="1" selected>× 1 (tiempo real)</option><option value="2">× 2</option><option value="4">× 4</option><option value="10">× 10</option>
+      </select>
+      <div class="reloj" aria-live="off"><b id="reloj">—</b><small id="millis">millis() 0</small></div>
+    </div>
+  </header>
+
+  <main class="escena">
+    <div class="lienzo" id="lienzo">
+      <canvas id="cv" aria-label="Vista superior del dojo con el robot, el rival y el cono del ultrasónico"></canvas>
+      <div class="hud"><span class="chip estado" id="chipEstado">apagado</span><span class="chip" id="chipDist">sonar —</span></div>
+      <div class="pista" id="pista">Arrastrá el robot o el rival para ubicarlos. La manija gira.</div>
+      <div class="aviso" id="aviso" hidden></div>
+    </div>
+
+    <div class="tablero">
+      <section class="caja ancha" aria-labelledby="hProg">
+        <h2 id="hProg">Programa del robot</h2>
+        <div class="fila">
+          <select id="selPrograma" class="largo" aria-label="Programa del robot"></select>
+          <button class="btn chico" type="button" id="bCargar">Cargar archivo…</button>
+          <button class="btn chico" type="button" id="bPegar">Pegar código…</button>
+          <button class="btn chico" type="button" id="bVerCodigo">Ver y editar</button>
+          <button class="btn chico" type="button" id="bQuitar" hidden>Quitar</button>
+          <input type="file" id="archivo" multiple accept=".ino,.pde,.h,.hpp,.cpp,.c,.py,.txt" hidden>
+        </div>
+        <div class="estado-prog" id="estadoProg"></div>
+        <p class="protocolo" id="protocolo"></p>
+        <div class="fila" id="filaModoSimple" hidden><label class="check"><input type="checkbox" id="chkModoSimple">MODO_SIMPLE</label></div>
+        <p class="nota">Arduino (<code>.ino</code>, con sus <code>.h</code>) o CircuitPython (<code>code.py</code>). El simulador lo traduce y lo corre con el hardware del kit. Tus programas quedan guardados en este navegador.</p>
+      </section>
+
+      <section class="caja" aria-labelledby="hEsc">
+        <h2 id="hEsc">Escenario</h2>
+        <div class="fila"><label class="txt" id="lRonda">Ronda</label>
+          <div class="seg" role="group" aria-labelledby="lRonda" id="segRonda">
+            <button type="button" data-r="1" aria-pressed="true">1 · frente</button>
+            <button type="button" data-r="2" aria-pressed="false">2 · lado</button>
+            <button type="button" data-r="3" aria-pressed="false">3 · espalda</button>
+          </div>
+        </div>
+        <div class="fila"><label class="txt" for="selRival">Rival</label>
+          <select id="selRival">
+            <option value="caja">Caja (se deja empujar)</option>
+            <option value="pared">Pared (no se mueve)</option>
+            <option value="rival">Rival que embiste (idealizado)</option>
+            <option value="tipico">Rival típico del kit (sonar, sin giroscopio)</option>
+            <option value="espejo">Otro programa en el rival</option>
+            <option value="ninguno">Sin rival</option>
+          </select>
+          <button class="btn chico" type="button" id="bPosicion">Posición de la ronda</button>
+        </div>
+        <div class="fila" id="filaProgRival" hidden><label class="txt" for="selProgRival">En el rival</label>
+          <select id="selProgRival" class="largo"></select>
+        </div>
+        <div class="fila"><label class="txt" for="selDojo">Dojo</label>
+          <select id="selDojo">
+            <option value="practica">Práctica · Ø 100 cm, anillo 10 cm</option>
+            <option value="oficial">Oficial · Ø 90 cm, anillo 5 cm</option>
+          </select>
+        </div>
+        <div class="fila"><label class="txt" for="selIR">Piso</label>
+          <select id="selIR">
+            <option value="brillante">Negro brillante (con reflejos)</option>
+            <option value="mate">Negro mate</option>
+          </select>
+          <label class="check"><input type="checkbox" id="chkDestellos" checked>Reflejos</label>
+        </div>
+        <div class="fila"><label class="txt" for="selIMU">IMU</label>
+          <select id="selIMU">
+            <option value="real">Real: vibración y sacudones medidos</option>
+            <option value="limpio">Limpio (sin sacudones)</option>
+          </select>
+        </div>
+        <div class="fila">
+          <label class="check"><input type="checkbox" id="chkAuto" checked>Operador automático</label>
+          <label class="check"><input type="checkbox" id="chkRapido" checked>Arranque ×12</label>
+          <label class="check"><input type="checkbox" id="chkSinImu">Sin IMU</label>
+        </div>
+        <p class="nota">Cambiar el escenario reinicia la simulación. El operador automático aprieta BOOT cuando el programa lo espera: sostiene el robot sobre negro o blanco si el programa lo pide, elige la ronda y da la salida.</p>
+      </section>
+
+      <section class="caja" aria-labelledby="hPru">
+        <h2 id="hPru">Pruebas en combate</h2>
+        <div class="pruebas">
+          <button class="btn" type="button" id="bLevantar">Levantar 3 s</button>
+          <button class="btn" type="button" id="bGolpeIzq">Golpe por la izq.</button>
+          <button class="btn" type="button" id="bGolpeDer">Golpe por la der.</button>
+          <button class="btn" type="button" id="bEmpIzq">Empujar desde izq.</button>
+          <button class="btn" type="button" id="bEmpDer">Empujar desde der.</button>
+          <button class="btn boot" type="button" id="bBoot" disabled>BOOT</button>
+        </div>
+        <p class="nota">Las pruebas se habilitan en el combate. BOOT se aprieta a mano con el operador automático apagado.</p>
+        <details>
+          <summary>Física estimada</summary>
+          <div class="grid-fis">
+            <div class="deslizador"><label for="rV0">Velocidad recta a fondo</label><output id="oV0"></output><input type="range" id="rV0" min="15" max="60" step="1"></div>
+            <div class="deslizador"><label for="rDes">Motor derecho más fuerte</label><output id="oDes"></output><input type="range" id="rDes" min="-20" max="30" step="1"></div>
+            <div class="deslizador"><label for="rEco">Ecos perdidos pegado al rival</label><output id="oEco"></output><input type="range" id="rEco" min="0" max="60" step="1"></div>
+            <div class="deslizador"><label for="rFza">Fuerza del rival</label><output id="oFza"></output><input type="range" id="rFza" min="50" max="160" step="5"></div>
+            <div class="deslizador"><label for="rCaja">Masa de la caja</label><output id="oCaja"></output><input type="range" id="rCaja" min="100" max="800" step="50"></div>
+            <div class="deslizador"><label for="rSem">Semilla del azar</label><output id="oSem"></output><input type="range" id="rSem" min="1" max="99" step="1"></div>
+          </div>
+          <p class="nota" style="margin-top:8px">La misma semilla repite el mismo combate. Si tu robot es más rápido o más lento, ajustá la velocidad recta.</p>
+        </details>
+        <details>
+          <summary>Pines del robot</summary>
+          <div class="pines" id="pines">
+            <label>Motor izq. (IN1, IN2)<input type="text" id="pMotorIzq" inputmode="numeric"></label>
+            <label>Motor der. (IN1, IN2)<input type="text" id="pMotorDer" inputmode="numeric"></label>
+            <label>Sonar (TRIG, ECHO)<input type="text" id="pSonar" inputmode="numeric"></label>
+            <label>IR (FI, FD, TI, TD)<input type="text" id="pIR" inputmode="numeric"></label>
+            <label>BOOT<input type="text" id="pBoot" inputmode="numeric"></label>
+            <label>NeoPixel<input type="text" id="pNeo" inputmode="numeric"></label>
+            <label>IMU (dirección I²C)<input type="text" id="pImu"></label>
+            <div class="fila" style="align-self:end"><label class="check"><input type="checkbox" id="pInvIzq">Invertir izq.</label><label class="check"><input type="checkbox" id="pInvDer">Invertir der.</label></div>
+          </div>
+          <div class="fila" style="margin-top:8px"><button class="btn chico" type="button" id="bPinesKit">Pines del kit</button><span class="nota" id="notaPines"></span></div>
+          <p class="nota" style="margin-top:6px">Por defecto, los del kit IdeaBoard. IN1 en alto hace avanzar la rueda; si tu robot está cableado al revés, marcá "Invertir".</p>
+        </details>
+      </section>
+
+      <section class="caja ancha" aria-labelledby="hEval">
+        <h2 id="hEval">Evaluar el programa</h2>
+        <div class="eval-opciones">
+          <span class="nota">Rivales:</span>
+          <label class="check"><input type="checkbox" data-riv="caja" checked>Caja</label>
+          <label class="check"><input type="checkbox" data-riv="tipico" checked>Típico</label>
+          <label class="check"><input type="checkbox" data-riv="rival" checked>Embiste</label>
+          <label class="check"><input type="checkbox" data-riv="espejo">El programa del rival</label>
+          <label class="check">Semillas <input type="number" id="nSemillas" min="1" max="10" value="2" style="width:64px"></label>
+          <label class="check">Tope <input type="number" id="nTope" min="10" max="180" value="90" style="width:70px"> s</label>
+          <button class="btn primario" type="button" id="bEvaluar">Evaluar</button>
+        </div>
+        <div class="progreso" id="progreso" hidden><i></i></div>
+        <div id="resultadoEval"></div>
+        <p class="nota">Pelea las 3 rondas del reglamento contra cada rival, con varias semillas, sin dibujar. Puntos como en el torneo: gana 3, empata 1, pierde 0.</p>
+      </section>
+    </div>
+
+    <details class="caja saber">
+      <summary>Qué es exacto y qué es estimado</summary>
+      <div class="saber-grid">
+        <div><h3>Exacto: tu programa</h3><ul>
+          <li>Se traduce tu código tal cual: mismas funciones, constantes, prioridades del <code>loop()</code> y tiempos. En C++ se respetan los tipos de Arduino: división entera, desborde de <code>byte</code>, <code>String</code>, <code>char</code>.</li>
+          <li>La API del ESP32: <code>millis()</code>, <code>delay()</code> por ticks de FreeRTOS, <code>pulseIn</code>, LEDC de los cores 2.x y 3.x, <code>analogWrite</code>, el puerto serie a 115200 (imprimir mucho frena el programa, como en el robot).</li>
+          <li>CircuitPython: <code>board</code>, <code>digitalio</code>, <code>analogio</code>, <code>keypad</code>, <code>ideaboard</code>, <code>hcsr04</code>, <code>neopixel</code>, IMU; los errores salen con su nombre de Python y su línea.</li>
+        </ul></div>
+        <div><h3>Modelado con datos medidos</h3><ul>
+          <li>Física ajustada contra un robot real del kit: pivote (~200 °/s a fondo, se traba debajo de ~0,6), desbalance de motores, deriva sin corrección 15–30 °/s.</li>
+          <li>Sensores IR del dojo brillante y del mate, con los reflejos del negro brillante; sonar con cono de ±15° y ecos perdidos (38 ms en alto).</li>
+          <li>IMU LSM6DS3TRC en 0x6B con los ejes y el ruido medidos, vibración y sacudones al manejar.</li>
+        </ul></div>
+        <div><h3>Estimado, sin medir</h3><ul>
+          <li>Velocidad recta, masa y roce de la caja, fuerza del rival, ecos perdidos en contacto.</li>
+          <li>El costo de tiempo de cada línea de CircuitPython (unos µs por sentencia).</li>
+          <li>El levantamiento es "a mano" (25° de golpe), no una rampa real.</li>
+        </ul></div>
+        <div><h3>No simulado</h3><ul>
+          <li>Pilas y caída de tensión, cables sueltos, interrupciones (<code>attachInterrupt</code>), WiFi y Bluetooth.</li>
+          <li>Paredes, personas o sillas fuera del dojo: el sonar real sí las ve.</li>
+          <li>En CircuitPython un <code>float</code> con valor entero se imprime sin ".0" (<code>5</code> en vez de <code>5.0</code>).</li>
+        </ul></div>
+      </div>
+    </details>
+  </main>
+
+  <aside class="lateral">
+    <section class="caja" aria-labelledby="hLed">
+      <h2 id="hLed">LED del robot (NeoPixel)</h2>
+      <div class="led-panel">
+        <div class="led-grande" id="ledGrande" role="img" aria-label="Color del LED"></div>
+        <div class="led-info"><b id="ledNombre">Apagado</b><span class="rgb" id="ledRgb">0, 0, 0</span><p id="ledUso">Encendé el robot para empezar.</p></div>
+      </div>
+      <div class="cinta-wrap">
+        <canvas class="cinta" id="cinta" aria-label="Historia del LED en los últimos 20 segundos"></canvas>
+        <div class="cinta-eje"><span>−20 s</span><span>−15</span><span>−10</span><span>−5</span><span>ahora</span></div>
+      </div>
+      <details class="leyenda"><summary id="tituloLeyenda">Colores que usó el programa</summary><ul class="leyenda-lista" id="leyenda"></ul></details>
+    </section>
+
+    <section class="caja" aria-labelledby="hLect">
+      <h2 id="hLect">Lo que ve el robot</h2>
+      <div class="lecturas">
+        <div class="dato"><span>Motor izq</span><b id="dMi">—</b></div>
+        <div class="dato"><span>Motor der</span><b id="dMd">—</b></div>
+        <div class="dato"><span>Sonar</span><b id="dDist">—</b></div>
+        <div class="dato"><span>Giro (IMU)</span><b id="dGiro">—</b></div>
+        <div class="dato"><span>Inclinación</span><b id="dIncl">—</b></div>
+        <div class="dato"><span>Rumbo real</span><b id="dRumbo">—</b></div>
+      </div>
+      <div class="irs" id="irs"></div>
+      <p class="nota">Lecturas crudas del hardware (ADC 0–4095; blanco lee bajo, negro alto). La raya roja es el umbral, si el programa tiene una variable que se llame <code>umbral…</code>.</p>
+    </section>
+
+    <details class="caja" id="cajaVars" open>
+      <summary>Variables del programa</summary>
+      <div class="vars-wrap"><table class="vars"><tbody id="vars"><tr><td>—</td><td></td></tr></tbody></table></div>
+    </details>
+
+    <section class="caja" aria-labelledby="hInf">
+      <h2 id="hInf">Informe</h2>
+      <div class="resumen" id="resumen"></div>
+      <p class="nota">Segundos desde la salida; entre paréntesis, desde el encendido. El punto es el color del LED. Una línea <code>E,&lt;ms&gt;,&lt;EVENTO&gt;,&lt;detalle&gt;</code> en el Serial se muestra como evento.</p>
+      <div class="filtros" id="filtros">
+        <button type="button" class="filtro" data-f="evento" aria-pressed="true">Eventos</button>
+        <button type="button" class="filtro" data-f="serial" aria-pressed="true">Serial</button>
+        <button type="button" class="filtro" data-f="arranque" aria-pressed="true">Arranque</button>
+        <button type="button" class="filtro" data-f="led" aria-pressed="false">LED</button>
+        <button type="button" class="filtro" data-f="estado" aria-pressed="true" hidden>Estados</button>
+        <button type="button" class="filtro" data-f="maniobra" aria-pressed="true" hidden>Maniobras</button>
+        <button type="button" class="filtro" data-f="golpe" aria-pressed="true" hidden>Golpes</button>
+      </div>
+      <ol class="informe ocultar-led" id="informe" aria-live="off"></ol>
+      <div class="acciones-informe">
+        <button class="btn chico" type="button" id="bCopiar">Copiar informe</button>
+        <button class="btn chico" type="button" id="bCopiarSerial">Copiar el Serial</button>
+        <span class="copiado" id="copiado" hidden>Copiado</span>
+      </div>
+      <textarea class="respaldo" id="respaldo" hidden readonly aria-label="Texto para copiar"></textarea>
+    </section>
+
+    <details class="caja" id="cajaSerial" open>
+      <summary>Monitor serie</summary>
+      <pre class="serial" id="serial">(vacío)</pre>
+    </details>
+  </aside>
+</div>
+
+<dialog id="dlgCodigo" aria-labelledby="dlgTitulo">
+  <form class="dlg" method="dialog" id="formCodigo">
+    <div class="fila">
+      <h2 id="dlgTitulo">Código</h2>
+      <div class="fila">
+        <select id="dlgArchivo" aria-label="Archivo" hidden></select>
+        <select id="dlgLenguaje" aria-label="Lenguaje" hidden>
+          <option value="auto">Detectar lenguaje</option>
+          <option value="ino">Arduino (.ino)</option>
+          <option value="py">CircuitPython (.py)</option>
+        </select>
+        <input type="text" id="dlgNombre" placeholder="Nombre del programa" aria-label="Nombre del programa" hidden>
+      </div>
+    </div>
+    <div class="editor"><pre class="nums" id="dlgNums" aria-hidden="true">1</pre><textarea id="dlgTexto" spellcheck="false" aria-label="Código del programa"></textarea></div>
+    <ul class="errores" id="dlgErrores"></ul>
+    <div class="fila">
+      <span class="nota" id="dlgNota"></span>
+      <div class="fila">
+        <button class="btn" type="button" id="dlgCerrar">Cerrar</button>
+        <button class="btn primario" type="button" id="dlgAplicar">Aplicar y reiniciar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/*__SIMCORE__*/
+</script>
+<script>
+/*__UI__*/
+</script>

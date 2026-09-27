@@ -15,3 +15,7 @@ venv/
 # --- Sistema ---
 .DS_Store
 Thumbs.db
+
+# --- Simulador: archivos intermedios del armado ---
+simulador/fuente/simcore.js
+simulador/fuente/simcore_publico.js
