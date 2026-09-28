@@ -7,6 +7,7 @@ que el IDE compila juntos:
 |---|---|
 | [`mussolini.ino`](mussolini.ino) | el archivo principal: motores, sensores, calibración, ataque y búsqueda, `setup()` y `loop()` |
 | [`giroscopio_control.ino`](giroscopio_control.ino) | el giroscopio: giros por ángulo, avance recto, levantamiento, golpes, escapes del borde |
+| [`mussolini_completo.ino`](mussolini_completo.ino) | ⚡ **los dos archivos de arriba, en uno solo** — para copiarlo y pegarlo entero en un sketch nuevo, sin bajar nada |
 | [`HISTORIAL_DEL_CODIGO.md`](HISTORIAL_DEL_CODIGO.md) | la historia de cada cambio y las mediciones detrás de cada valor |
 
 **Versión:** comportamiento del 26-09-2026 (cambios 1–33); comentarios resumidos el 27-09-2026.
@@ -18,9 +19,19 @@ que el IDE compila juntos:
 1. Instalar el [Arduino IDE](https://www.arduino.cc/en/software).
 2. En **Boards Manager**, instalar **esp32** (de Espressif), **versión 3.x**. Con la 2.x no compila.
 3. En **Library Manager**, instalar **Adafruit NeoPixel** y **Adafruit LSM6DS**.
-4. Abrir **`mussolini.ino`**. La pestaña `giroscopio_control.ino` se abre sola.
+4. Cargar el código, de una de las dos formas:
+   - **Copiar y pegar (rápido, sin bajar el repo):** Archivo → Nuevo Sketch en el IDE, borrar lo que
+     trae, abrir [`mussolini_completo.ino`](mussolini_completo.ino) acá en GitHub (botón **Raw**),
+     copiar todo y pegarlo en el sketch nuevo.
+   - **Bajando el repo:** abrir **`mussolini.ino`**. La pestaña `giroscopio_control.ino` se abre sola.
 5. Elegir la placa **ESP32 Dev Module** y el puerto del robot, y subir.
 6. Abrir el Monitor Serie a **115200** baudios para ver la calibración.
+
+> `mussolini_completo.ino` es exactamente el mismo código que los dos archivos de arriba, uno
+> después del otro en un solo archivo: el IDE de Arduino ya los concatenaba así al compilar, así
+> que el comportamiento es idéntico. Si vas a seguir modificándolo, mejor trabajar con los dos
+> archivos separados (`mussolini.ino` + `giroscopio_control.ino`): son más cortos y más fáciles de
+> navegar.
 
 > Si los motores no se mueven o el sonar siempre da "fuera de rango", revisar el **jumper entre
 > SELECT y Vin** del shield antes que el código.

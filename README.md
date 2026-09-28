@@ -12,10 +12,14 @@ código sin el robot.
 
 ### 👉 [`mussolini/`](mussolini) — es exactamente lo que corre hoy en el robot
 
-1. Descargar el repositorio: botón verde **Code → Download ZIP**, y descomprimirlo.
-2. Abrir **`mussolini/mussolini.ino`** con el IDE de Arduino. La otra pestaña
-   (`giroscopio_control.ino`) se abre sola.
-3. Instalar lo que falta y subirlo: [pasos en mussolini/README.md](mussolini/README.md#subirlo-al-robot).
+**La forma más rápida, sin bajar nada:** abrir
+[`mussolini/mussolini_completo.ino`](mussolini/mussolini_completo.ino) (botón **Raw**), copiar todo
+y pegarlo en un sketch nuevo del IDE de Arduino.
+
+También se puede bajar el repositorio entero (botón verde **Code → Download ZIP**) y abrir
+**`mussolini/mussolini.ino`** — la otra pestaña (`giroscopio_control.ino`) se abre sola.
+
+Instalar lo que falta y subirlo: [pasos en mussolini/README.md](mussolini/README.md#subirlo-al-robot).
 
 ---
 
