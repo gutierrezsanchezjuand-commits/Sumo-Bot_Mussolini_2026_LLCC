@@ -227,6 +227,17 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 
 /* Enlaces a GitHub */
 .links { display: grid; gap: 6px; }
+/* Créditos: herramientas gratuitas y de pago */
+.credits { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: var(--fs-s); color: var(--ink-2); }
+.credits summary { cursor: pointer; font-weight: 600; color: var(--ink); list-style: none; display: flex; align-items: center; gap: 8px; }
+.credits summary::-webkit-details-marker { display: none; }
+.credits summary::before { content: '+'; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line-2); font: 600 0.8rem/1 var(--font-body); color: var(--accent); transition: transform 0.3s var(--ease); }
+.credits[open] summary::before { transform: rotate(45deg); }
+.credits p { margin: 10px 0 8px; line-height: 1.5; }
+.credits ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.credits li { line-height: 1.45; }
+.credits .costo { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-2); font: 600 0.6875rem/1.5 var(--font-body); letter-spacing: 0.04em; color: var(--ink-2); white-space: nowrap; }
+.credits .costo.pago { border-color: var(--accent); color: var(--accent); }
 .gh {
   display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline; text-decoration: none;
   padding: 10px 12px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line);
@@ -412,6 +423,19 @@ pre.cmd { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: v
           <li><span class="kbd">←</span> <span class="kbd">→</span> para pasar de módulo</li>
         </ul>
         <div class="links" id="intro-links"></div>
+        <details class="credits">
+          <summary>Cómo se hizo</summary>
+          <p>El robot lo armó, lo probó y lo midió su autor en el dojo. La programación se hizo con <b>Claude</b> (Anthropic) en <b>Claude Code</b>: el código del robot, el simulador, la documentación, esta presentación y el video.</p>
+          <ul>
+            <li><b>Claude Code</b>, de Anthropic <span class="costo pago">suscripción de pago</span><br>Programación, simulador, documentación, presentación 3D y video, con los modelos Claude Opus, Sonnet y Haiku.</li>
+            <li><b>Higgsfield</b> <span class="costo">plan gratuito</span><br>Una de las dos voces del video (Seed Audio).</li>
+            <li><b>Voces de Microsoft</b>, con edge-tts <span class="costo">gratis</span><br>La otra voz del video (es-CR-JuanNeural).</li>
+            <li><b>Arduino IDE</b> y el core ESP32 <span class="costo">gratis</span><br>Compilar y subir el código al robot.</li>
+            <li><b>Three.js</b> y <b>Google Fonts</b> <span class="costo">gratis</span><br>El modelo 3D y las letras de esta presentación.</li>
+            <li><b>ffmpeg</b>, <b>Node.js</b>, <b>Python</b> y <b>Microsoft Edge</b> <span class="costo">gratis</span><br>Montar el video, renderizar cada cuadro y preparar los audios.</li>
+            <li><b>GitHub</b> y <b>GitHub Pages</b> <span class="costo">gratis</span><br>El código, las descargas y esta página en línea.</li>
+          </ul>
+        </details>
       </div>
     </section>
 

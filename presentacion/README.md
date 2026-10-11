@@ -13,3 +13,6 @@ código, una demo y los enlaces a la información completa. Incluye una sección
 - **Video de 2 minutos** que la recorre:
   [mussolini_por_dentro.mp4](https://github.com/gutierrezsanchezjuand-commits/Sumo-Bot_Mussolini_2026_LLCC/releases/download/presentacion-v1/mussolini_por_dentro.mp4)
   (1080p, dos voces, subtítulos).
+
+Hecha con Claude Code (Anthropic). Las herramientas usadas, gratuitas y de pago, están en
+[Cómo se hizo](../README.md#-cómo-se-hizo).

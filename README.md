@@ -96,6 +96,25 @@ Pines y mediciones: [docs/hardware.md](docs/hardware.md).
 
 ---
 
+## 🤖 Cómo se hizo
+
+El robot lo armó, lo probó y lo midió su autor en el dojo. La programación se hizo con **Claude**
+(Anthropic) en **Claude Code**: el firmware de Mussolini, el simulador, la documentación de
+[`docs/`](docs), la [presentación interactiva](presentacion) y el video. Qué se probaba y qué quedaba
+se decidió con las corridas reales del robot.
+
+| Herramienta | Para qué | Costo |
+|---|---|---|
+| Claude Code (Anthropic) | programación, simulador, documentación, presentación 3D y video, con los modelos Claude Opus, Sonnet y Haiku | suscripción de pago |
+| Higgsfield | una de las dos voces del video (Seed Audio) | plan gratuito |
+| Voces de Microsoft, con [edge-tts](https://github.com/rany2/edge-tts) | la otra voz del video (es-CR-JuanNeural) | gratis |
+| Arduino IDE + core ESP32 | compilar y subir el firmware | gratis |
+| Three.js y Google Fonts | el modelo 3D y las letras de la presentación | gratis |
+| ffmpeg, Node.js, Python y Microsoft Edge | montar el video, renderizar cada cuadro y preparar los audios | gratis |
+| GitHub y GitHub Pages | el código, las descargas y la presentación en línea | gratis |
+
+---
+
 ## 👤 Autor
 
 Juan D. Gutiérrez Sánchez
