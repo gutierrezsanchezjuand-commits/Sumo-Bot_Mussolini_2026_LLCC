@@ -8,6 +8,16 @@ código sin el robot.
 
 ---
 
+## 📺 Conocé a Mussolini en 2 minutos
+
+| | |
+|---|---|
+| 🧩 **Presentación interactiva en 3D** | **[Abrir en línea](https://gutierrezsanchezjuand-commits.github.io/Sumo-Bot_Mussolini_2026_LLCC/presentacion/)** — cada pieza del robot con su ficha, demos y enlaces al código. También se puede [descargar](https://github.com/gutierrezsanchezjuand-commits/Sumo-Bot_Mussolini_2026_LLCC/releases/download/presentacion-v1/mussolini_por_dentro.html): es un solo archivo que funciona sin internet. |
+| 🎬 **Video** | **[Descargar el video](https://github.com/gutierrezsanchezjuand-commits/Sumo-Bot_Mussolini_2026_LLCC/releases/download/presentacion-v1/mussolini_por_dentro.mp4)** — 2:00, 1080p, a dos voces y con subtítulos ([subtítulos .srt](https://github.com/gutierrezsanchezjuand-commits/Sumo-Bot_Mussolini_2026_LLCC/releases/download/presentacion-v1/mussolini_por_dentro.srt)). |
+| 🕹️ **Simulador** | **[Abrir en línea](https://gutierrezsanchezjuand-commits.github.io/Sumo-Bot_Mussolini_2026_LLCC/simulador/simulador.html)** — corre cualquier programa de Arduino o CircuitPython del kit. |
+
+---
+
 ## ⭐ El código de Mussolini
 
 ### 👉 [`mussolini/`](mussolini) — es exactamente lo que corre hoy en el robot
@@ -28,6 +38,7 @@ Instalar lo que falta y subirlo: [pasos en mussolini/README.md](mussolini/README
 | Carpeta | Qué tiene |
 |---|---|
 | [`mussolini/`](mussolini) | ⭐ **el código actual del robot**, cómo subirlo y cómo arrancarlo en el dojo |
+| [`presentacion/`](presentacion) | la presentación interactiva en 3D (se abre en línea o se descarga como un solo HTML) |
 | [`simulador/`](simulador) | un simulador del robot del kit que corre **cualquier** programa de Arduino o CircuitPython. Es un solo HTML: se abre con doble clic |
 | [`docs/`](docs) | cómo está hecho el código y por qué: arquitectura, parámetros, pruebas, decisiones |
 | [`diagnosticos/`](diagnosticos) | programas cortos para probar motores, sensores IR, sonar y giroscopio |
