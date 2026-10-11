@@ -103,6 +103,9 @@ El robot lo armó, lo probó y lo midió su autor en el dojo. La programación s
 [`docs/`](docs), la [presentación interactiva](presentacion) y el video. Qué se probaba y qué quedaba
 se decidió con las corridas reales del robot.
 
+El detalle, con cifras, quién hizo qué y la línea de tiempo, está en la pestaña
+[**Cómo se hizo**](https://gutierrezsanchezjuand-commits.github.io/Sumo-Bot_Mussolini_2026_LLCC/presentacion/#como-se-hizo) de la presentación.
+
 | Herramienta | Para qué | Costo |
 |---|---|---|
 | Claude Code (Anthropic) | programación, simulador, documentación, presentación 3D y video, con los modelos Claude Opus, Sonnet y Haiku | suscripción de pago |

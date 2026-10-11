@@ -350,6 +350,46 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 }
 .sim figure { margin: 0; }
 .sim img { width: 100%; max-width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 12px; background: #0b0f14; border: 1px solid var(--line); display: block; }
+/* Sección "Cómo se hizo" */
+.ia-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 26px; }
+.stat { padding: 16px 16px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--raise); }
+.stat b { display: block; font: 600 2.4rem/1 var(--font-display); color: var(--accent); letter-spacing: 0.01em; font-variant-numeric: tabular-nums; }
+.stat span { display: block; margin-top: 6px; font-size: var(--fs-s); color: var(--ink-2); line-height: 1.4; }
+.ia-block { margin-top: 30px; }
+.quien { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-s); }
+.quien th { text-align: left; padding: 10px 12px; font: 600 var(--fs-xs)/1.3 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+.quien th.claude { color: var(--accent); }
+.quien td { padding: 12px; vertical-align: top; color: var(--ink-2); border-bottom: 1px solid var(--line); line-height: 1.45; }
+.quien td:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.quien td.claude { background: var(--accent-soft); color: var(--ink); }
+.flujo { list-style: none; margin: 0; padding: 0 !important; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.flujo li { position: relative; padding: 14px 14px 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--raise); }
+.flujo li:not(:last-child)::after { content: '\2192'; position: absolute; z-index: 2; right: -5px; top: 50%; transform: translate(50%, -50%); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--panel-solid); border: 1px solid var(--accent); color: var(--accent); font: 600 0.85rem/1 var(--font-body); }
+.flujo .n { font: 600 var(--fs-xs)/1 var(--font-mono); color: var(--accent); }
+.flujo b { display: block; margin-top: 6px; font: 600 var(--fs-m)/1.2 var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
+.flujo li > span:last-child { display: block; margin-top: 4px; font-size: var(--fs-xs); color: var(--ink-3); line-height: 1.4; }
+.flujo-nota { margin-top: 10px !important; font-size: var(--fs-s); }
+.porque { list-style: none; padding: 0 !important; display: grid; gap: 10px; }
+.porque li { padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--raise); border-radius: 0 12px 12px 0; }
+.porque b { display: block; color: var(--ink); margin-bottom: 3px; }
+.linea { list-style: none; padding: 0 0 0 18px !important; border-left: 2px solid var(--line-2); display: grid; gap: 14px; margin-left: 6px !important; }
+.linea li { position: relative; }
+.linea li::before { content: ''; position: absolute; left: -25px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--panel-solid); }
+.linea time { display: block; font: 600 var(--fs-xs)/1.3 var(--font-mono); color: var(--accent); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); font: 600 0.6875rem/1.5 var(--font-body); color: var(--ink-2); white-space: nowrap; }
+.pill.pago { border-color: var(--accent); color: var(--accent); }
+.ver-ia { display: inline-block; margin-top: 10px; color: var(--accent); font-weight: 600; text-decoration: none; }
+.ver-ia:hover { text-decoration: underline; }
+@media (max-width: 900px) {
+  .flujo { grid-template-columns: minmax(0, 1fr); }
+  .flujo li:not(:last-child)::after { content: '\2193'; right: 50%; top: auto; bottom: -5px; transform: translate(50%, 50%); }
+  .flujo { gap: 14px; }
+}
+@media (max-width: 760px) {
+  .ia-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat b { font-size: 2rem; }
+  .quien td:first-child { white-space: normal; }
+}
 .sim figcaption { margin-top: 6px; font-size: var(--fs-xs); color: var(--ink-3); }
 pre.cmd { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--raise); border: 1px solid var(--line); overflow-x: auto; font: 500 var(--fs-xs)/1.6 var(--font-mono); color: var(--ink); }
 .kbd { font-family: var(--font-mono); font-size: 0.85em; padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line-2); background: var(--raise); color: var(--ink); white-space: nowrap; }
@@ -403,6 +443,7 @@ pre.cmd { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: v
     <div class="tabs" role="tablist" aria-label="Secciones">
       <button class="tab" role="tab" id="tab-robot" data-section="robot" aria-selected="true" aria-controls="robot-area">Robot</button>
       <button class="tab" role="tab" id="tab-sim" data-section="sim" aria-selected="false" aria-controls="sim">Simulador</button>
+      <button class="tab" role="tab" id="tab-ia" data-section="ia" aria-selected="false" aria-controls="ia">Cómo se hizo</button>
     </div>
   </header>
 
@@ -435,6 +476,7 @@ pre.cmd { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: v
             <li><b>ffmpeg</b>, <b>Node.js</b>, <b>Python</b> y <b>Microsoft Edge</b> <span class="costo">gratis</span><br>Montar el video, renderizar cada cuadro y preparar los audios.</li>
             <li><b>GitHub</b> y <b>GitHub Pages</b> <span class="costo">gratis</span><br>El código, las descargas y esta página en línea.</li>
           </ul>
+          <a class="ver-ia" href="#como-se-hizo" id="ver-ia">Ver todo el detalle →</a>
         </details>
       </div>
     </section>
@@ -539,6 +581,93 @@ node fuente/pruebas/probar_traductores.js</pre>
             <section>
               <h3>Ejemplos que trae</h3>
               <div class="links" id="sim-links"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sim" id="ia" role="tabpanel" aria-labelledby="ia-title">
+      <div class="sim-inner">
+        <header class="sim-head">
+          <p class="eyebrow">Detrás del proyecto</p>
+          <h2 id="ia-title">Hecho con Claude</h2>
+          <p class="lede">El robot lo armó, lo probó y lo midió su autor en el dojo. Todo lo que es código y explicación —el programa del robot, el simulador, los diagnósticos, la documentación, esta presentación y el video— se hizo con <b>Claude</b>, la IA de Anthropic, trabajando en <b>Claude Code</b>.</p>
+        </header>
+        <div class="ia-stats">
+          <div class="stat"><b>1.355</b><span>líneas del programa del robot, en dos archivos y más de 40 funciones</span></div>
+          <div class="stat"><b>33</b><span>cambios documentados, cada uno con la medición que lo justifica</span></div>
+          <div class="stat"><b>8.966</b><span>líneas del simulador, que traduce programas de Arduino y de CircuitPython</span></div>
+          <div class="stat"><b>16.572</b><span>palabras de documentación, en 10 documentos</span></div>
+          <div class="stat"><b>74</b><span>commits en GitHub desde el 13 de julio de 2026</span></div>
+          <div class="stat"><b>3.600</b><span>cuadros en 1080p para los 2 minutos de video, con 2 voces y 42 subtítulos</span></div>
+        </div>
+        <section class="ia-block">
+          <h3>Quién hizo qué</h3>
+          <div class="tbl-wrap">
+            <table class="quien">
+              <thead><tr><th>Parte</th><th class="claude">Claude</th><th>El autor</th></tr></thead>
+              <tbody>
+                <tr><td>Programa del robot</td><td class="claude">Lo escribió y lo reescribió: escapes del borde, persecución con el sonar, giros exactos con el giroscopio, detección de golpes y de levantamiento, y la selección de ronda.</td><td>Armó el robot, lo probó en el dojo (la reescritura del 20 de septiembre se probó en 9 corridas reales) y decidió qué se quedaba.</td></tr>
+                <tr><td>Simulador</td><td class="claude">Lo construyó: traduce el <code>.ino</code> o el <code>code.py</code> sin cambiarlo, lo corre con el hardware del kit y lo hace pelear contra distintos rivales. Trae sus propias pruebas.</td><td>Lo usó para comparar versiones antes de subirlas al robot.</td></tr>
+                <tr><td>Diagnósticos</td><td class="claude">6 programas cortos para probar motores, sensores IR, sonar y giroscopio.</td><td>Los corrió en el robot y trajo las lecturas.</td></tr>
+                <tr><td>Documentación</td><td class="claude">10 documentos: arquitectura, parámetros, protocolo de pruebas, decisiones, telemetría y reglamento.</td><td>Aportó las mediciones, las fotos y las preguntas.</td></tr>
+                <tr><td>Presentación 3D</td><td class="claude">El modelo pieza por pieza, las 9 fichas, las demos y las pinturas calcadas de las fotos, con cada dato verificado contra el código.</td><td>Corrigió dónde iba cada pieza y pidió cada ajuste.</td></tr>
+                <tr><td>Video</td><td class="claude">Guion, voces, sincronía con la imagen, subtítulos y render cuadro por cuadro.</td><td>Eligió las voces y aprobó el guion.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="ia-block">
+          <h3>Cómo se trabajó</h3>
+          <ol class="flujo">
+            <li><span class="n">1</span><b>Medir</b><span>Qué hace hoy el robot, con números.</span></li>
+            <li><span class="n">2</span><b>Cambiar una cosa</b><span>Una sola por vez, para saber qué funcionó.</span></li>
+            <li><span class="n">3</span><b>Simulador</b><span>Las 3 rondas del reglamento, contra varios rivales.</span></li>
+            <li><span class="n">4</span><b>Dojo</b><span>En el robot real, con el autor.</span></li>
+            <li><span class="n">5</span><b>Anotar</b><span>En la bitácora, con la medición.</span></li>
+          </ol>
+          <p class="flujo-nota">Y de vuelta al paso 1: nada se dio por bueno sin medirlo.</p>
+        </section>
+        <div class="sim-grid">
+          <div>
+            <section>
+              <h3>Por qué salió bien</h3>
+              <ul class="porque">
+                <li><b>Contexto completo</b>El código entero, las fotos del kit y el reglamento; no pedazos sueltos.</li>
+                <li><b>Medir antes de cambiar</b>Cada valor del código tiene anotada la medición que lo justifica.</li>
+                <li><b>Verificar contra la fuente</b>Los datos de esta presentación salen del programa real del robot, no de memoria.</li>
+                <li><b>Corregir los propios errores</b>El diseño de Gerardo salió al revés la primera vez; se rehízo midiendo la foto en milímetros.</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Herramientas y costo</h3>
+              <div class="tbl-wrap">
+                <table class="tbl">
+                  <thead><tr><th>Herramienta</th><th>Para qué</th><th>Costo</th></tr></thead>
+                  <tbody>
+                    <tr><td>Claude Code</td><td>Todo lo que es código y explicación</td><td><span class="pill pago">de pago</span></td></tr>
+                    <tr><td>Higgsfield</td><td>Una de las voces del video</td><td><span class="pill">plan gratuito</span></td></tr>
+                    <tr><td>Voces Microsoft</td><td>La otra voz del video</td><td><span class="pill">gratis</span></td></tr>
+                    <tr><td>Arduino IDE</td><td>Subir el código al robot</td><td><span class="pill">gratis</span></td></tr>
+                    <tr><td>Three.js, ffmpeg</td><td>El 3D y el montaje del video</td><td><span class="pill">gratis</span></td></tr>
+                    <tr><td>GitHub, Pages</td><td>El código, las descargas y esta página</td><td><span class="pill">gratis</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+          <div>
+            <section>
+              <h3>Línea de tiempo</h3>
+              <ol class="linea">
+                <li><time>13 jul 2026</time>Primer commit del repositorio.</li>
+                <li><time>30 ago</time>Programa con el giroscopio integrado.</li>
+                <li><time>20 sep</time>Reescritura completa, probada en 9 corridas reales.</li>
+                <li><time>27 sep</time>Simulador para cualquier programa del kit, y la documentación.</li>
+                <li><time>10 oct</time>Maqueta 3D y esta presentación.</li>
+                <li><time>11 oct</time>Video de 2 minutos y publicación en GitHub.</li>
+              </ol>
             </section>
           </div>
         </div>
@@ -789,7 +918,7 @@ const $ = (s) => document.querySelector(s);
 const ui = {
   intro: $('#intro'), panel: $('#panel'), body: $('#panel-body'), mods: $('#mods'), step: $('#step'),
   play: $('#play'), tags: $('#tags'), notes: $('#notes'), leaders: $('#leaders'), tip: $('#tip'),
-  sim: $('#sim'), loading: $('#loading'),
+  sim: $('#sim'), ia: $('#ia'), loading: $('#loading'),
 };
 const state = { section: 'robot', sel: null, mode: 'intro', labels: true, spin: true, explode: false, finish: 'mussolini', playing: false };
 const FINISHES = [['mussolini', 'Mussolini', 'Pintura: Mussolini'], ['gerardo', 'Gerardo (compañero)', 'Pintura: Gerardo'], ['acrilico', 'Acrílico del kit', 'Acrílico del kit']];
@@ -968,13 +1097,18 @@ function setPlay(on) {
   clearInterval(playTimer);
   if (on) { if (!state.sel) go(1); playTimer = setInterval(() => go(1), 14000); }
 }
+// Secciones que tapan el 3D, con la dirección que muestran en la barra
+const SECCIONES = { sim: 'simulador', ia: 'como-se-hizo' };
 function setSection(s) {
   state.section = s;
-  document.body.classList.toggle('sim-open', s === 'sim');
+  const capa = s !== 'robot';
+  document.body.classList.toggle('sim-open', capa);
   ui.sim.classList.toggle('is-on', s === 'sim');
+  ui.ia.classList.toggle('is-on', s === 'ia');
   $('#tab-robot').setAttribute('aria-selected', String(s === 'robot'));
   $('#tab-sim').setAttribute('aria-selected', String(s === 'sim'));
-  if (s === 'sim') { setPlay(false); ui.panel.classList.remove('is-on'); setIntro(false); buildNotes(null); try { history.replaceState(null, '', '#simulador'); } catch (e) { /* sin historial */ } }
+  $('#tab-ia').setAttribute('aria-selected', String(s === 'ia'));
+  if (capa) { setPlay(false); ui.panel.classList.remove('is-on'); setIntro(false); buildNotes(null); try { history.replaceState(null, '', '#' + SECCIONES[s]); } catch (e) { /* sin historial */ } }
   else if (state.sel) { showPanel(byId[state.sel]); buildNotes(byId[state.sel]); }
   else setIntro(state.mode === 'intro');
 }
@@ -1053,6 +1187,7 @@ $('#panel-close').addEventListener('click', () => { setPlay(false); closeModule(
 $('#go-tour').addEventListener('click', () => { state.mode = 'tour'; openModule(MODULES[0].id); });
 $('#go-explore').addEventListener('click', () => { state.mode = 'explore'; setIntro(false); setSpin(false); api?.goView(OVERVIEW, 'none'); });
 document.querySelectorAll('[data-section]').forEach((b) => b.addEventListener('click', () => setSection(b.dataset.section)));
+$('#ver-ia').addEventListener('click', (e) => { e.preventDefault(); setSection('ia'); });
 $('#t-explode').addEventListener('click', () => setTool('explode', !state.explode));
 $('#t-finish').addEventListener('click', () => { const i = FINISHES.findIndex((x) => x[0] === state.finish); setFinish(FINISHES[(i + 1) % FINISHES.length][0]); });
 $('#t-labels').addEventListener('click', () => setTool('labels', !state.labels));
@@ -1062,7 +1197,7 @@ addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea')) return;
   if (e.key === 'ArrowRight') { setPlay(false); go(1); }
   else if (e.key === 'ArrowLeft') { setPlay(false); go(-1); }
-  else if (e.key === 'Escape') { if (state.section === 'sim') setSection('robot'); else if (state.sel) closeModule(); }
+  else if (e.key === 'Escape') { if (state.section !== 'robot') setSection('robot'); else if (state.sel) closeModule(); }
 });
 addEventListener('resize', () => {
   // Solo se rehace la ficha si cambia de lado (escritorio ↔ teléfono); así no se pierde el estado de las demos.
@@ -2133,6 +2268,7 @@ const uiHooks = {
 // Arranque: la interfaz funciona aunque el 3D no cargue.
 const start = location.hash.slice(1);
 if (start === 'simulador') setSection('sim');
+else if (start === 'como-se-hizo') setSection('ia');
 else if (byId[start]) openModule(start);
 init3D().then((a) => {
   api = a;
