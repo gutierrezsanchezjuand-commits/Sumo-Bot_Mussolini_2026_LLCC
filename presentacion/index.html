@@ -225,6 +225,57 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 .led-list button[aria-pressed="true"] { border-color: var(--accent); background: var(--panel-solid); color: var(--ink); }
 .led-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--line-2); }
 
+/* ===== «Cómo decide», animado =====
+   decide.js pone en cada fila, en cada cuadro: --in (entra), --lit (se revisa, ámbar), --hot (ataque, rojo),
+   --win (manda, rojo), --dim (espera o no se cumple) y --tag (etiqueta). --u escala todo: 1 en la ficha, ~1.8 en el video. */
+.dc { --u: 1; position: relative; color: var(--ink); font-family: var(--font-body); }
+.dc-loop { display: inline-flex; align-items: center; gap: calc(var(--u) * 7px); margin: 0; padding: calc(var(--u) * 4px) calc(var(--u) * 9px); border-radius: 999px; border: 1px solid var(--line-2); font: 500 calc(var(--u) * 11.5px)/1.2 var(--font-mono); color: var(--ink-2); white-space: nowrap; }
+.dc-loop i { width: calc(var(--u) * 7px); height: calc(var(--u) * 7px); border-radius: 50%; background: var(--accent); opacity: calc(0.35 + 0.65 * var(--beat, 0)); transform: scale(calc(1 + 0.6 * var(--beat, 0))); }
+.dc [data-i] { position: relative; opacity: calc(var(--in, 1) * (1 - 0.55 * var(--dim, 0))); transform: translateY(calc((1 - var(--in, 1)) * var(--u) * 10px)); }
+.dc-n { width: calc(var(--u) * 24px); height: calc(var(--u) * 24px); flex: none; border-radius: 50%; display: grid; place-items: center; font: 600 calc(var(--u) * 13px)/1 var(--font-display); background: var(--panel-solid); border: 1px solid var(--line-2); color: var(--ink-2); }
+.dc-act { font: 600 calc(var(--u) * 12.5px)/1.15 var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+.dc-txt { min-width: 0; }
+.dc-txt b { display: block; font: 600 calc(var(--u) * 14px)/1.2 var(--font-body); color: var(--ink); }
+.dc-txt small { display: block; margin-top: calc(var(--u) * 1px); font-size: calc(var(--u) * 12px); line-height: 1.3; color: var(--ink-3); }
+.dc-tag { position: absolute; z-index: 3; right: calc(var(--u) * -6px); top: calc(var(--u) * -9px); padding: calc(var(--u) * 2px) calc(var(--u) * 8px); border-radius: 999px; font: 600 calc(var(--u) * 11px)/1.4 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; background: var(--panel-solid); border: 1px solid var(--line-2); color: var(--ink-3); opacity: var(--tag, 0); transform: scale(calc(0.6 + 0.4 * var(--tag, 0))); pointer-events: none; }
+.dc-tag:empty { display: none; }
+.dc-tag.si { color: var(--accent); border-color: var(--accent); }
+.dc-tag.manda { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.dc-tag.manda.rojo { color: #fff; background: var(--led-red); border-color: var(--led-red); }
+/* brillo de cada fila: ámbar = se revisa; rojo = ataque o manda el ataque */
+.dc-hl::before, .dc-hl::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; }
+.dc-hl::before { border: 1px solid var(--accent); background: var(--accent-soft); opacity: var(--lit, 0); }
+.dc-hl::after { border: 1px solid var(--led-red); background: rgba(255, 90, 79, 0.16); box-shadow: 0 0 calc(var(--u) * 18px) rgba(255, 90, 79, 0.28); opacity: max(var(--hot, 0), var(--win, 0)); }
+.dc-hl > :not(.dc-tag) { position: relative; z-index: 1; }
+.dc-row.on .dc-n { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* A · Escalera */
+.dc-a .dc-rows { list-style: none; margin: calc(var(--u) * 10px) 0 0; padding: 0; display: grid; gap: calc(var(--u) * 7px); position: relative; }
+.dc-a .dc-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(var(--u) * 10px); padding: calc(var(--u) * 8px) calc(var(--u) * 11px); border-radius: calc(var(--u) * 10px); background: var(--raise); border: 1px solid var(--line); }
+.dc-a .dc-scan { position: absolute; z-index: 4; left: calc(var(--u) * -4px); right: calc(var(--u) * -4px); top: 0; height: calc(var(--u) * 3px); border-radius: 3px; background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent) 70%, transparent); box-shadow: 0 0 calc(var(--u) * 10px) var(--accent); opacity: var(--scan, 0); transform: translateY(var(--scanY, 0px)); pointer-events: none; }
+/* En la ficha: controles y resultado */
+.sec .dc-after { margin-top: 10px; }
+.dc-ctrl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 10px; }
+.dc-ctrl .pill { padding: 4px 11px; font-size: var(--fs-xs); }
+.dc-hint { font-size: var(--fs-xs); color: var(--ink-3); }
+.dc-out { margin-top: 8px; min-height: 2.9em; font-size: var(--fs-s); line-height: 1.45; color: var(--ink); }
+.dc-out:empty { display: none; }
+.dc-out b { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.dc.toca [data-i]:not([data-i="3"]) { cursor: pointer; }
+.dc.toca .dc-row:not([data-i="3"]):hover { border-color: var(--line-2); }
+
+/* Fondos en prueba: el color lo pone el CSS (sigue al tema); el piso 3D solo agrega luz y sombra */
+body[data-fondo="arena"] #scene { background: radial-gradient(62% 58% at 50% 44%, color-mix(in srgb, var(--stage-2) 90%, #ffd9a0), var(--stage) 60%, color-mix(in srgb, var(--stage) 55%, #000) 100%); }
+body[data-fondo="taller"] #scene { background: radial-gradient(125% 95% at 50% 32%, color-mix(in srgb, var(--stage-2) 78%, #3c5a78), color-mix(in srgb, var(--stage) 88%, #1c2c3c) 72%); }
+body[data-fondo="estudio"] #scene { background: linear-gradient(180deg, color-mix(in srgb, var(--stage-2) 58%, #9aa6b4) 0%, color-mix(in srgb, var(--stage-2) 82%, #9aa6b4) 46%, var(--stage) 100%); }
+/* Indicador de lo que mide el giroscopio (sobre el 3D) */
+.hud { position: fixed; z-index: 30; left: 50%; top: 84px; transform: translateX(-50%); display: grid; justify-items: center; gap: 2px; min-width: 190px; padding: 10px 22px 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); backdrop-filter: blur(12px); pointer-events: none; opacity: 0; text-align: center; }
+.hud-k { font: 600 clamp(0.7rem, 0.9vw, 1.05rem)/1.2 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.hud-v { font: 600 clamp(1.6rem, 3vw, 3.4rem)/1 var(--font-display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.hud-n { font-size: clamp(0.75rem, 0.95vw, 1.1rem); color: var(--ink-2); }
+.hud-n:empty { display: none; }
+@media (max-width: 760px) { .hud { top: auto; bottom: calc(58% + 28px); min-width: 0; padding: 8px 16px 10px; } }
+
 /* Enlaces a GitHub */
 .links { display: grid; gap: 6px; }
 /* Créditos: herramientas gratuitas y de pago */
@@ -706,6 +757,10 @@ const REDUCED = false;
 const wrap = (a) => ((a % 360) + 360) % 360;
 const sdiff = (a, b) => { let d = wrap(b) - wrap(a); if (d > 180) d -= 360; if (d < -180) d += 360; return d; };
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// Elegido con maqueta el 2026-10-11: fondo «taller» (cuadrícula), motores «anda» e IMU «funciones».
+// Las otras opciones siguen disponibles para comparar: ?fondo=hoy|arena|estudio ?motores=hoy|tarjeta ?imu=hoy|tarjeta.
+const OPC = (() => { const q = new URLSearchParams(location.search), o = window.__OPC || {}; return { fondo: o.fondo || q.get('fondo') || 'taller', motores: o.motores || q.get('motores') || 'anda', imu: o.imu || q.get('imu') || 'funciones' }; })();
+document.body.dataset.fondo = OPC.fondo;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -829,7 +884,7 @@ const MODULES = [
     lede: 'Una placa con ESP32 que lee todos los sensores y decide qué hacer en cada vuelta del programa, que dura unos 2 ms.',
     chips: ['ESP32-WROOM-32E', 'Core ESP32 3.x', 'USB-C', 'LED NeoPixel · IO2', 'BOOT · pin 0'],
     sections: [
-      { h: 'Cómo decide', ol: ['¿Algún IR ve el borde? Escapa.', '¿Lo están levantando? Retrocede hasta apoyar.', '¿Lo empujan de costado o lo golpean? Sale hacia adelante.', 'Si nada de eso pasa: busca, persigue y ataca con el sonar.'], after: 'La primera que se cumple manda; las demás esperan a la siguiente vuelta.' },
+      { h: 'Cómo decide', decide: true, after: 'La primera que se cumple manda; las demás esperan a la siguiente vuelta.' },
       { h: 'Botón BOOT', p: 'Sirve para todo el arranque: calibrar (negro y blanco), elegir la ronda (1, 2 o 3 pulsaciones seguidas dentro de 1,2 s) y dar la salida. Después nadie toca el robot.' },
       { h: 'Puente SELECT–Vin', p: 'Da energía a los motores y al sonar. Si falta, ni se mueven ni mide: es lo primero que hay que revisar.' },
       { h: 'Subir el código', p: 'Por USB-C, con el IDE de Arduino o con FLASHEAR.bat (de 12 a 20 segundos). La forma más rápida sin bajar nada: copiar mussolini_completo.ino desde GitHub y pegarlo en un sketch nuevo.' },
@@ -913,6 +968,148 @@ const LEDS = [
   ['#d64dff', 'Violeta × 3', 'Un sensor IR quedó débil al calibrar'],
 ];
 
+// «Cómo decide», animado. El estado de cada fila es una función del tiempo, así que se ve igual en el navegador
+// (tiempo real) y en el video (reloj virtual, cuadro por cuadro). Mismo orden que el loop de mussolini.ino:
+// borde > levantamiento > empuje lateral o golpe > ataque con el sonar.
+const Decide = (() => {
+  const cl = (x) => Math.max(0, Math.min(1, x));
+  const ss = (x) => { const y = cl(x); return y * y * (3 - 2 * y); };
+  const ramp = (t, a, d) => ss((t - a) / d);
+  const ventana = (t, a, b, f) => Math.min(ramp(t, a - f / 2, f), 1 - ramp(t, b - f / 2, f));
+  const gauss = (x, s) => Math.exp(-(x * x) / (2 * s * s));
+
+  // Segundos. voz: la escena 6 del video, al compás de cada palabra de la voz B («primero el borde…»).
+  // ficha: sin voz, cuando la ficha de la IdeaBoard aparece en pantalla.
+  const TIEMPOS = {
+    voz: { in: 0.15, inD: 0.6, scanA: 2.95, scanB: 4.55, P: 0.4, ms: 3.8, cur: [5.1, 6.2, 6.8, 8.1], curFin: 9.2, ev: [9.6, 9.93, 10.26, 10.6], manda: 10.87, out: 12.55, outD: 0.55 },
+    ficha: { in: 0, inD: 0.45, scanA: 0.6, scanB: 1.85, P: 0.42, ms: 0.75, cur: [2.05, 2.65, 3.25, 3.85], curFin: 4.6, ev: [4.85, 5.2, 5.55, 5.9], manda: 6.2, out: Infinity, outD: 1 },
+  };
+  const FIN_FICHA = TIEMPOS.ficha.manda + 0.6;
+
+  function estado(t, T) {
+    const op = ramp(t, T.in, T.inD) * (1 - ramp(t, T.out, T.outD));
+    const scanOp = ventana(t, T.scanA, T.scanB, 0.24);
+    const k = (t - T.scanA) / T.P, pos = k - Math.floor(k);
+    let beat = gauss(t - T.ms, 0.12);
+    if (scanOp > 0) beat = Math.max(beat, scanOp * Math.max(gauss(pos, 0.05), gauss(1 - pos, 0.05)));
+    const filas = [0, 1, 2, 3].map((i) => {
+      const f = { in: ramp(t, T.in + 0.08 * i, T.inD), lit: 0, hot: 0, win: 0, dim: 0, tag: 0, txt: '', cls: '' };
+      f.lit = 0.55 * scanOp * gauss(pos - (i + 0.5) / 4, 0.07);                 // la pasada rápida revisa cada fila
+      const v = ventana(t, T.cur[i], i < 3 ? T.cur[i + 1] : T.curFin, 0.2);       // el cursor sigue a la voz
+      if (i < 3) f.lit = Math.max(f.lit, v); else f.hot = v;
+      const e = ramp(t, T.ev[i], 0.18);                                          // «lo primero que se cumple, manda»
+      if (e > 0) {
+        f.tag = e;
+        if (i < 3) {
+          f.txt = 'no'; f.dim = 0.6 * ramp(t, T.ev[i] + 0.12, 0.3);
+          f.lit = Math.max(f.lit, 0.8 * ventana(t, T.ev[i] - 0.06, T.ev[i] + 0.24, 0.1));
+        } else {
+          const m = ramp(t, T.manda, 0.22);
+          f.txt = m > 0 ? 'manda' : 'sí'; f.cls = m > 0 ? 'manda rojo' : 'si'; f.win = m;
+          f.hot = Math.max(f.hot, ventana(t, T.ev[3] - 0.06, T.manda + 0.1, 0.1));
+        }
+      }
+      return f;
+    });
+    return { op, beat, scanOp, pos, filas };
+  }
+
+  // Ganadora con las condiciones encendidas a mano (filas 1 a 3; la 4 se cumple sola).
+  function estadoManual(conds) {
+    const w = conds.findIndex(Boolean), g = w < 0 ? 3 : w;
+    const filas = [0, 1, 2, 3].map((i) => ({
+      in: 1, lit: i === g && g < 3 ? 1 : 0, hot: 0, win: i === g && g === 3 ? 1 : 0, dim: i === g ? 0 : 0.6, tag: 1,
+      txt: i < g ? 'no' : i === g ? 'manda' : 'espera', cls: i === g ? (g === 3 ? 'manda rojo' : 'manda') : '',
+    }));
+    return { op: 1, beat: 0, scanOp: 0, pos: 0, filas, ganadora: g };
+  }
+
+  function pintar(raiz, s, tarjeta) {
+    if (tarjeta) tarjeta.style.setProperty('--op', s.op.toFixed(3));
+    raiz.style.setProperty('--beat', s.beat.toFixed(3));
+    const filas = raiz.querySelectorAll('[data-i]');
+    filas.forEach((el, i) => {
+      const f = s.filas[i];
+      for (const k of ['in', 'lit', 'hot', 'win', 'dim', 'tag']) el.style.setProperty('--' + k, f[k].toFixed(3));
+      const tag = el.querySelector('.dc-tag');
+      if (tag.textContent !== f.txt) tag.textContent = f.txt;
+      const cls = ('dc-tag ' + f.cls).trim();
+      if (tag.className !== cls) tag.className = cls;
+    });
+    const scan = raiz.querySelector('.dc-scan');
+    if (!scan) return;
+    scan.style.setProperty('--scan', s.scanOp.toFixed(3));
+    if (s.scanOp <= 0) return;
+    const a = filas[0], b = filas[filas.length - 1];
+    scan.style.setProperty('--scanY', (a.offsetTop + (b.offsetTop + b.offsetHeight - a.offsetTop) * s.pos).toFixed(1) + 'px');
+  }
+
+  const TEXTO = [
+    '<b>Manda el borde</b> · Escapa del blanco antes que cualquier otra cosa.',
+    '<b>Manda el levantamiento</b> · Retrocede hasta volver a apoyarse.',
+    '<b>Manda el empujón</b> · Sale hacia adelante para zafarse.',
+    '<b>Manda el sonar</b> · Como nada más pasa, busca, persigue o ataca según la distancia.',
+  ];
+
+  // En la ficha: se reproduce al aparecer; «Repetir» vuelve a empezar; con toca=true, las filas 1 a 3 se encienden y apagan.
+  function montarFicha(raiz, { toca = false } = {}) {
+    const sec = raiz.closest('.sec') || raiz.parentElement;
+    const out = sec.querySelector('.dc-out'), rep = sec.querySelector('.dc-rep');
+    const filas = [...raiz.querySelectorAll('[data-i]')];
+    let t0 = 0, raf = 0, manual = null, visto = false;
+    const cuadro = (now) => {
+      if (manual) return;
+      const t = (now - t0) / 1000;
+      pintar(raiz, estado(t, TIEMPOS.ficha));
+      if (t < FIN_FICHA) raf = requestAnimationFrame(cuadro);
+    };
+    const reproducir = () => {
+      manual = null; cancelAnimationFrame(raf);
+      filas.forEach((f) => { f.classList.remove('on'); f.setAttribute('aria-pressed', 'false'); });
+      if (out) out.innerHTML = '';
+      t0 = performance.now(); raf = requestAnimationFrame(cuadro);
+    };
+    pintar(raiz, estado(-1, TIEMPOS.ficha));
+    const io = new IntersectionObserver((es) => { if (!visto && es.some((e) => e.isIntersecting)) { visto = true; reproducir(); io.disconnect(); } }, { threshold: 0.35 });
+    io.observe(raiz);
+    rep?.addEventListener('click', reproducir);
+    if (toca) {
+      raiz.classList.add('toca');
+      filas.slice(0, 3).forEach((f, i) => {
+        f.setAttribute('role', 'button'); f.setAttribute('tabindex', '0'); f.setAttribute('aria-pressed', 'false');
+        const cambiar = () => {
+          cancelAnimationFrame(raf);
+          manual = manual || [false, false, false];
+          manual[i] = !manual[i];
+          f.classList.toggle('on', manual[i]); f.setAttribute('aria-pressed', String(manual[i]));
+          const s = estadoManual(manual);
+          pintar(raiz, s);
+          if (out) {
+            const esperan = manual.some((c, j) => c && j > s.ganadora);
+            out.innerHTML = TEXTO[s.ganadora] + (esperan ? ' Lo que también se cumple más abajo espera a la siguiente vuelta, unos 2 ms después.' : '');
+          }
+        };
+        f.addEventListener('click', cambiar);
+        f.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cambiar(); } });
+      });
+    }
+    return { reproducir };
+  }
+
+  return { TIEMPOS, estado, estadoManual, pintar, montarFicha };
+})();
+
+// Filas de «Cómo decide» en la ficha de la IdeaBoard: título, condición y acción.
+const DECIDE_FILAS = [
+  ['Borde', '¿Algún IR ve blanco?', 'Escapa'],
+  ['Levantado', '¿Lo están levantando?', 'Retrocede'],
+  ['Empujón', '¿Lo empujan de costado o lo golpean?', 'Sale adelante'],
+  ['Ataque', 'Si nada de eso pasa: usa el sonar', 'Busca y ataca'],
+];
+function decideHtml(filas = DECIDE_FILAS) {
+  return `<div class="dc dc-a"><p class="dc-loop"><i></i>una vuelta cada ~2 ms</p><ol class="dc-rows">${filas.map(([t, q, a], i) => `<li class="dc-row dc-hl" data-i="${i}"><span class="dc-n">${i + 1}</span><span class="dc-txt"><b>${esc(t)}</b><small>${esc(q)}</small></span><span class="dc-act">${esc(a)}</span><span class="dc-tag"></span></li>`).join('')}<li class="dc-scan" aria-hidden="true"></li></ol></div>`;
+}
+
 // ===================== Interfaz =====================
 const $ = (s) => document.querySelector(s);
 const ui = {
@@ -938,6 +1135,7 @@ ui.mods.innerHTML = '<span class="mod-ind" id="mod-ind" aria-hidden="true"></spa
 ui.tags.innerHTML = MODULES.map((m) => `<button class="tag" type="button" data-mod="${m.id}" tabindex="-1">${m.name}</button>`).join('');
 
 function renderSection(s) {
+  if (s.decide) return `<section class="sec"><h3>${esc(s.h)}</h3>${decideHtml()}<p class="dc-after">${esc(s.after)}</p><div class="dc-ctrl"><button class="pill dc-rep" type="button">↻ Repetir</button><span class="dc-hint">Toca las condiciones 1 a 3 para encenderlas.</span></div><div class="dc-out" aria-live="polite"></div></section>`;
   let h = `<section class="sec"><h3>${esc(s.h)}</h3>`;
   if (s.p) h += `<p>${esc(s.p)}</p>`;
   if (s.list) h += `<ul>${s.list.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
@@ -950,8 +1148,8 @@ function renderDemo(kind) {
   if (kind === 'finish') return `<section class="demo"><h3>Pruébalo: cambia la pintura</h3><div class="demo-row" role="group" aria-label="Acabado del chasis">${FINISHES.map(([id, name]) => `<button class="pill" type="button" id="d-fin-${id}" data-finish="${id}">${name}</button>`).join('')}</div></section>`;
   if (kind === 'ir') return `<section class="demo"><h3>Pruébalo: ¿qué sensores ven blanco?</h3><div class="ir-grid">${[[1, 'IR 1 · frontal izq.'], [2, 'IR 2 · frontal der.'], [3, 'IR 3 · trasero izq.'], [4, 'IR 4 · trasero der.']].map(([n, t]) => `<button class="pill" type="button" id="d-ir-${n}" data-ir="${n}" aria-pressed="false">${t}</button>`).join('')}</div><div class="demo-out" id="ir-out">Toca uno o dos sensores para ver qué maniobra elige el código.</div></section>`;
   if (kind === 'sonar') return `<section class="demo"><h3>Pruébalo: distancia al rival</h3><label for="d-sonar" class="mono" style="font-size:var(--fs-s)">Rival a <output id="sonar-val">30 cm</output></label><input class="range" type="range" id="d-sonar" min="0" max="120" step="1" value="30"><div class="gauge" aria-hidden="true"><span></span><span></span><span></span></div><div class="gauge-labels" aria-hidden="true"><span>0</span><span>40 cm</span><span>100+</span></div><div class="demo-out" id="sonar-out"></div></section>`;
-  if (kind === 'imu') return `<section class="demo"><h3>Pruébalo</h3><div class="demo-row"><button class="pill" type="button" id="d-imu-2" data-imu="r2">Giro de la ronda 2</button><button class="pill" type="button" id="d-imu-3" data-imu="r3">Giro de la ronda 3</button><button class="pill" type="button" id="d-imu-l" data-imu="lift">Simular que lo levantan</button></div><div class="demo-out" id="imu-out">Elige una prueba para ver qué mide la IMU.</div></section>`;
-  if (kind === 'motores') return `<section class="demo"><h3>Pruébalo</h3><div class="demo-row"><button class="pill" type="button" id="d-mot-f" data-mot="fwd">Adelante</button><button class="pill" type="button" id="d-mot-b" data-mot="back">Atrás</button><button class="pill" type="button" id="d-mot-l" data-mot="left">Girar a la izquierda</button><button class="pill" type="button" id="d-mot-r" data-mot="right">Girar a la derecha</button></div><div class="demo-out" id="mot-out">Elige un movimiento para ver cómo giran las ruedas.</div></section>`;
+  if (kind === 'imu') return `<section class="demo"><h3>Pruébalo</h3><div class="demo-row"><button class="pill" type="button" id="d-imu-2" data-imu="r2">Giro de la ronda 2</button><button class="pill" type="button" id="d-imu-3" data-imu="r3">Giro de la ronda 3</button><button class="pill" type="button" id="d-imu-l" data-imu="lift">Simular que lo levantan</button>${OPC.imu !== 'hoy' ? '<button class="pill" type="button" id="d-imu-g" data-imu="golpe">Simular un golpe</button><button class="pill" type="button" id="d-imu-d" data-imu="recto">Avanzar derecho</button>' : ''}</div><div class="demo-out" id="imu-out">Elige una prueba para ver qué mide la IMU.</div></section>`;
+  if (kind === 'motores') return `<section class="demo"><h3>Pruébalo</h3><div class="demo-row"><button class="pill" type="button" id="d-mot-f" data-mot="fwd">Adelante</button><button class="pill" type="button" id="d-mot-b" data-mot="back">Atrás</button><button class="pill" type="button" id="d-mot-l" data-mot="left">Girar a la izquierda</button><button class="pill" type="button" id="d-mot-r" data-mot="right">Girar a la derecha</button>${OPC.motores !== 'hoy' ? '<button class="pill" type="button" id="d-mot-v" data-mot="vuelta">Dar una vuelta</button>' : ''}</div><div class="demo-out" id="mot-out">Elige un movimiento para ver cómo giran las ruedas.</div></section>`;
   if (kind === 'led') return `<section class="demo"><h3>Colores del LED · toca uno para verlo</h3><ul class="led-list">${LEDS.map(([c, n, d], i) => `<li><button type="button" id="d-led-${i}" data-led="${i}" aria-pressed="false"><span class="led-dot" style="background:${c}"></span><span><b style="color:var(--ink)">${n}</b> · ${d}</span></button></li>`).join('')}</ul></section>`;
   return '';
 }
@@ -988,8 +1186,33 @@ function leerBorde([fl, fr, rl, rr]) {
   return '';
 }
 
+// Botones de motores e IMU con los guiones nuevos: la pose sale del tiempo, igual que en el video.
+const IMU_TXT = {
+  r2: '<b>Ronda 2</b><br>Gira 90° a la derecha midiendo con el giroscopio; en los últimos 25° baja la velocidad. LED amarillo.',
+  r3: '<b>Ronda 3</b><br>Gira 180° a la derecha midiendo con el giroscopio; en los últimos 25° baja la velocidad. LED amarillo.',
+  lift: '<b>Levantado</b><br>Inclinación de 19°: más de 15° durante 250 ms. Retrocede hasta volver a apoyar y luego gira 90° hacia el rival.',
+  golpe: '<b>Golpe</b><br>El acelerómetro marca más de 0,35 g: sabe que lo empujaron o lo chocaron y sale hacia adelante para zafarse.',
+  recto: '<b>Avanzar derecho</b><br>Mientras avanza, el giroscopio mide cuánto se desvía y corrige la velocidad de cada rueda: el rumbo queda fijo.',
+};
+const VISTA_ANCHA = { motores: { ax: 34, ay: 200, f: [0, 12, 0], dist: 450 }, imu: { ax: 36, ay: 30, f: [0, 28, 0], dist: 430 } };
+let anchaDe = null, ledTimer = 0;
+function mover(seccion, k, m) {
+  if (!api) return;
+  const v = OPC[seccion], en3d = seccion === 'motores' ? v === 'anda' : v === 'funciones';
+  if (v === 'hoy') { if (seccion === 'motores') api.motorDemo(k); return; }
+  // para ver al robot andar (y las marcas del piso) la cámara se abre una vez y queda así hasta cambiar de ficha
+  if (en3d && (seccion === 'imu' || k === 'vuelta') && anchaDe !== m.id) {
+    anchaDe = m.id; api.select(null); buildNotes(null); api.goView(VISTA_ANCHA[seccion], isPhone() ? 'bottom' : m.side);
+  }
+  api.guion(seccion === 'motores' && k === 'vuelta' ? 'motores' : k, { mover: seccion === 'imu' || en3d, extras: en3d });
+  clearTimeout(ledTimer);
+  if (k === 'r2' || k === 'r3') { api.ledDemo('#ffe14a', false); ledTimer = setTimeout(() => api.ledDemo(null, false), k === 'r2' ? 2800 : 3200); }
+}
+
 function bindDemo(m) {
   const b = ui.body;
+  const dc = b.querySelector('.dc');
+  if (dc) Decide.montarFicha(dc, { toca: true });
   if (m.demo === 'finish') {
     const sync = () => b.querySelectorAll('[data-finish]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.finish === state.finish)));
     b.querySelectorAll('[data-finish]').forEach((x) => x.addEventListener('click', () => { setFinish(x.dataset.finish); sync(); }));
@@ -1019,7 +1242,10 @@ function bindDemo(m) {
   }
   if (m.demo === 'imu') {
     const out = b.querySelector('#imu-out');
-    b.querySelectorAll('[data-imu]').forEach((x) => x.addEventListener('click', () => api?.imuDemo(x.dataset.imu, (t) => { out.innerHTML = t; })));
+    b.querySelectorAll('[data-imu]').forEach((x) => x.addEventListener('click', () => {
+      if (OPC.imu === 'hoy') { api?.imuDemo(x.dataset.imu, (t) => { out.innerHTML = t; }); return; }
+      out.innerHTML = IMU_TXT[x.dataset.imu]; mover('imu', x.dataset.imu, m);
+    }));
   }
   if (m.demo === 'motores') {
     const out = b.querySelector('#mot-out');
@@ -1028,8 +1254,9 @@ function bindDemo(m) {
       back: '<b>Atrás</b><br>Las dos ruedas giran hacia atrás.',
       left: '<b>Gira a la izquierda</b><br>Rueda izquierda hacia atrás y derecha hacia adelante: pivota en el lugar.',
       right: '<b>Gira a la derecha</b><br>Rueda izquierda hacia adelante y derecha hacia atrás. Así hace el giro de la ronda 2.',
+      vuelta: '<b>Una vuelta</b><br>Primero una curva: la rueda izquierda gira mucho más rápido que la derecha. Después, ruedas en sentidos opuestos: pivota 360° sobre su eje y queda donde empezó.',
     };
-    b.querySelectorAll('[data-mot]').forEach((x) => x.addEventListener('click', () => { out.innerHTML = txt[x.dataset.mot]; api?.motorDemo(x.dataset.mot); }));
+    b.querySelectorAll('[data-mot]').forEach((x) => x.addEventListener('click', () => { out.innerHTML = txt[x.dataset.mot]; mover('motores', x.dataset.mot, m); }));
   }
   if (m.demo === 'led') {
     b.querySelectorAll('[data-led]').forEach((x) => x.addEventListener('click', () => {
@@ -1073,7 +1300,7 @@ function openModule(id) {
   const m = byId[id]; if (!m) return;
   if (state.section !== 'robot') setSection('robot');
   if (state.explode) setTool('explode', false);
-  state.sel = id; if (state.mode === 'intro') state.mode = 'explore';
+  state.sel = id; anchaDe = null; if (state.mode === 'intro') state.mode = 'explore';
   setIntro(false); setSpin(false);
   showPanel(m); updateDock();
   api?.resetDemos(); api?.select(id, KEEP[id]);
@@ -1211,6 +1438,28 @@ async function init3D() {
   const THREE = await import('three');
   const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
   return buildScene(THREE, RoomEnvironment, $('#scene'));
+}
+
+// Piso de los fondos en prueba: solo luz y sombra (alfa) sobre el color del CSS. Radio 1100; el dojo mide 130.
+function pisoTextura(THREE, tipo) {
+  const N = 2048, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d'), m = N / 2, u = N / 2200;
+  const radial = (r0, r1, stops) => { const gr = g.createRadialGradient(m, m, r0 * u, m, m, r1 * u); stops.forEach(([o, col]) => gr.addColorStop(o, col)); g.fillStyle = gr; g.fillRect(0, 0, N, N); };
+  if (tipo === 'taller') {
+    for (let k = -1100; k <= 1100; k += 10) {
+      const fuerte = k % 50 === 0;
+      g.strokeStyle = `rgba(170, 200, 230, ${fuerte ? 0.22 : 0.09})`; g.lineWidth = fuerte ? 2.2 : 1.1;
+      g.beginPath(); g.moveTo(m + k * u, 0); g.lineTo(m + k * u, N); g.moveTo(0, m + k * u); g.lineTo(N, m + k * u); g.stroke();
+    }
+    g.globalCompositeOperation = 'destination-in';
+    radial(0, 950, [[0, 'rgba(0,0,0,1)'], [0.32, 'rgba(0,0,0,1)'], [1, 'rgba(0,0,0,0)']]);
+    g.globalCompositeOperation = 'source-over';
+  }
+  if (tipo === 'arena') radial(0, 760, [[0, 'rgba(255, 232, 196, 0.30)'], [0.3, 'rgba(255, 232, 196, 0.13)'], [1, 'rgba(255, 232, 196, 0)']]);
+  if (tipo === 'estudio') radial(0, 950, [[0, 'rgba(255, 255, 255, 0.10)'], [1, 'rgba(255, 255, 255, 0)']]);
+  radial(128, tipo === 'estudio' ? 340 : 215, [[0, 'rgba(0, 0, 0, 0.55)'], [1, 'rgba(0, 0, 0, 0)']]);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
 }
 
 function buildScene(THREE, RoomEnvironment, canvas) {
@@ -1602,7 +1851,7 @@ function buildScene(THREE, RoomEnvironment, canvas) {
 
   // ---------- grafo: pivote (giro 360°) → demo → robot ----------
   const pivot = new THREE.Group(); pivot.position.set(0, 36, 0); scene.add(pivot);
-  const demoG = new THREE.Group(); pivot.add(demoG);
+  const demoG = new THREE.Group(); pivot.add(demoG); demoG.rotation.order = 'YXZ';   // inclinar sobre su propio eje aunque esté girado
   const robot = new THREE.Group(); robot.position.set(0, -36, 0); demoG.add(robot);
   const parts = [];
   const part = (ex) => { const g = new THREE.Group(); g.userData.ex = new THREE.Vector3(ex[0], ex[1], ex[2]); robot.add(g); parts.push(g); return g; };
@@ -1616,6 +1865,13 @@ function buildScene(THREE, RoomEnvironment, canvas) {
   ringM.rotation.x = -Math.PI / 2; ringM.position.y = 0.2; ringM.receiveShadow = true; floorG.add(ringM);
   const arrowM = new THREE.Mesh(new THREE.ConeGeometry(6, 16, 3), std(0xf2a93b, 0.5));
   arrowM.rotation.x = Math.PI / 2; arrowM.position.set(0, 1.5, 84); floorG.add(arrowM);
+  if (OPC.fondo !== 'hoy') {
+    // el dojo pasa a ser una tarima, sobre un piso que solo pone luz y sombra
+    const canto = new THREE.Mesh(new THREE.CylinderGeometry(130.5, 132, 8, 96, 1, true), std(0x15181c, 0.75));
+    canto.position.y = -4.1; floorG.add(canto);
+    const piso = new THREE.Mesh(new THREE.CircleGeometry(1100, 96), new THREE.MeshBasicMaterial({ map: pisoTextura(THREE, OPC.fondo), transparent: true, depthWrite: false, toneMapped: false }));
+    piso.rotation.x = -Math.PI / 2; piso.position.y = -8.2; piso.renderOrder = -2; floorG.add(piso);
+  }
 
   // ---------- base PCB ----------
   const IRS = [{ x: 19, z: 28 }, { x: -19, z: 28 }, { x: 19, z: 6 }, { x: -19, z: 6 }];
@@ -2079,7 +2335,143 @@ function buildScene(THREE, RoomEnvironment, canvas) {
   // ---------- vista y animaciones ----------
   const view = { ax: OVERVIEW.ax, ay: OVERVIEW.ay, fx: OVERVIEW.f[0], fy: OVERVIEW.f[1], fz: OVERVIEW.f[2], dist: OVERVIEW.dist, ox: isPhone() ? 0 : -0.16, oy: isPhone() ? -0.24 : 0 };
   let tween = null, spin = true, selMod = null, hoverMod = null, explode = { cur: 0, tgt: 0 };
-  const demo = { wheelL: 0, wheelR: 0, wheelUntil: 0, yaw: 0, yawTgt: 0, tilt: 0, tiltTgt: 0, lift: 0, liftTgt: 0, led: null, ledBlink: false };
+  const demo = { wheelL: 0, wheelR: 0, wheelUntil: 0, yaw: 0, yawTgt: 0, tilt: 0, tiltTgt: 0, lift: 0, liftTgt: 0, led: null, ledBlink: false, guion: null };
+
+  // ---------- guiones de movimiento (motores e IMU) ----------
+  // Se integra una vez la cinemática de dos ruedas y después solo se lee la muestra del instante: se ve igual
+  // en vivo y en el video (reloj virtual, cuadro por cuadro). x, z: desplazamiento del eje de las ruedas.
+  const EJE_Z = -28, TROCHA = 88, RADIO_RUEDA = 21;
+  const campana = (t, a, d) => (t <= a || t >= a + d ? 0 : 0.5 - 0.5 * Math.cos((2 * Math.PI * (t - a)) / d));
+  const suave01 = (x) => { const y = clamp(x, 0, 1); return y * y * (3 - 2 * y); };
+  const piv = (a, d, grados) => { const v = (Math.abs(grados) * DEG * TROCHA) / d; return grados > 0 ? { a, d, vl: -v, vr: v } : { a, d, vl: v, vr: -v }; };
+  const recto = (a, d, dist) => ({ a, d, vl: (2 * dist) / d, vr: (2 * dist) / d });
+  const curva = (a, d, izq, der) => ({ a, d, vl: (2 * izq) / d, vr: (2 * der) / d });
+  const GUIONES = {
+    // «Dos motores, uno por rueda. Si una va más rápido que la otra, gira. Y si van en sentidos opuestos, pivota sobre su eje.»
+    motores: { fin: 7.5, segs: [recto(0.3, 0.9, 24), recto(1.25, 0.8, -24), curva(2.1, 1.5, 85, 5.85), curva(3.65, 1.2, -85, -5.85), piv(4.95, 2.4, -360)], estela: [2.1, 3.65, 4.6] },
+    // «Le permite girar noventa o ciento ochenta grados exactos, notar si lo levantan o lo golpean, y avanzar derecho.»
+    imu: { fin: 10.9, segs: [piv(3.0, 0.9, -90), piv(4.3, 1.1, 180), piv(9.0, 0.5, -90), recto(9.5, 0.8, 30), recto(10.3, 0.55, -30)],
+      giros: [[3.0, 0.9], [4.3, 1.1]], tilt: [[6.6, 0], [7.1, -19], [7.7, -19], [8.1, 0]], lift: [[6.6, 0], [7.1, 12], [7.7, 12], [8.1, 0]],
+      golpe: [8.5, 0.4], rumbo: { a: 9.6, d: 0.6, linea: [9.45, 10.9] } },
+    // movimientos cortos de los botones de las fichas (motores e IMU)
+    fwd: { fin: 2.1, segs: [recto(0.15, 0.9, 24), recto(1.2, 0.8, -24)] },
+    back: { fin: 2.1, segs: [recto(0.15, 0.9, -24), recto(1.2, 0.8, 24)] },
+    left: { fin: 2.5, segs: [piv(0.15, 0.8, 90), piv(1.6, 0.8, -90)] },
+    right: { fin: 2.5, segs: [piv(0.15, 0.8, -90), piv(1.6, 0.8, 90)] },
+    r2: { fin: 2.8, segs: [piv(0.2, 0.9, -90), piv(1.95, 0.75, 90)], giros: [[0.2, 0.9]] },
+    r3: { fin: 3.2, segs: [piv(0.2, 1.1, -180), piv(2.15, 0.95, 180)], giros: [[0.2, 1.1]] },
+    lift: { fin: 5.2, segs: [recto(1.95, 0.6, -15), piv(2.65, 0.7, 90), piv(3.7, 0.7, -90), recto(4.5, 0.6, 15)],
+      tilt: [[0.1, 0], [0.6, -19], [1.3, -19], [1.7, 0]], lift: [[0.1, 0], [0.6, 12], [1.3, 12], [1.7, 0]] },
+    golpe: { fin: 1.6, segs: [], golpe: [0.25, 0.4] },
+    recto: { fin: 2.3, segs: [recto(0.2, 1.0, 30), recto(1.45, 0.75, -30)], rumbo: { a: 0.35, d: 0.6, linea: [0.1, 2.2] } },
+  };
+  function kf(t, keys) {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) { const [t0, v0] = keys[i - 1], [t1, v1] = keys[i]; return v0 + (v1 - v0) * suave01((t - t0) / (t1 - t0)); }
+    return keys[keys.length - 1][1];
+  }
+  const integrados = {};
+  function integrar(nombre) {
+    if (integrados[nombre]) return integrados[nombre];
+    const { segs, fin } = GUIONES[nombre], P = 1 / 240, n = Math.ceil(fin / P) + 2;
+    const A = { x: new Float32Array(n), z: new Float32Array(n), yaw: new Float32Array(n), al: new Float32Array(n), ar: new Float32Array(n) };
+    let x = 0, z = 0, yaw = 0, al = 0, ar = 0;
+    for (let i = 0; i < n; i++) {
+      A.x[i] = x; A.z[i] = z; A.yaw[i] = yaw; A.al[i] = al; A.ar[i] = ar;
+      const t = i * P; let vl = 0, vr = 0;
+      for (const s of segs) { const k = campana(t, s.a, s.d); vl += s.vl * k; vr += s.vr * k; }
+      const v = (vl + vr) / 2;
+      x += v * Math.sin(yaw) * P; z += v * Math.cos(yaw) * P; yaw += ((vr - vl) / TROCHA) * P; al += (vl / RADIO_RUEDA) * P; ar += (vr / RADIO_RUEDA) * P;
+    }
+    return (integrados[nombre] = (t) => {
+      const f = clamp(t / P, 0, n - 1), i = Math.floor(f), j = Math.min(n - 1, i + 1), k = f - i, m = (a) => a[i] + (a[j] - a[i]) * k;
+      return { x: m(A.x), z: m(A.z), yaw: m(A.yaw), al: m(A.al), ar: m(A.ar) };
+    });
+  }
+  function poseGuion(nombre, t) {
+    const def = GUIONES[nombre], p = integrar(nombre)(t);
+    let yaw = p.yaw, lado = 0, golpe = 0;
+    if (def.golpe) { const k = (t - def.golpe[0]) / def.golpe[1]; if (k > 0 && k < 1) { lado = 7 * Math.sin(Math.PI * k) * (1 - k); yaw += 3 * DEG * Math.sin(2 * Math.PI * k) * (1 - k); golpe = Math.sin(Math.PI * k); } }
+    if (def.rumbo) { const k = (t - def.rumbo.a) / def.rumbo.d; if (k > 0 && k < 1) yaw += 2.5 * DEG * Math.sin(2 * Math.PI * k) * (1 - k); }
+    return { x: p.x + lado * Math.cos(yaw), z: p.z - lado * Math.sin(yaw), yaw, al: p.al, ar: p.ar, tilt: def.tilt ? kf(t, def.tilt) : 0, lift: def.lift ? kf(t, def.lift) : 0, golpe };
+  }
+  // capas en el piso (arco del giro, estela del camino, línea del rumbo) e indicador HUD
+  const capaMat = () => new THREE.MeshBasicMaterial({ color: 0xf2a93b, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  const capas = ['arco', 'estela', 'rumbo'].reduce((o, k) => { const me = new THREE.Mesh(new THREE.BufferGeometry(), capaMat()); me.renderOrder = 7; floorG.add(me); o[k] = me; return o; }, {});
+  function cinta(puntos, ancho) {
+    const pos = [], idx = [];
+    puntos.forEach(([x, z], i) => {
+      const [xa, za] = puntos[Math.max(0, i - 1)], [xb, zb] = puntos[Math.min(puntos.length - 1, i + 1)];
+      let dx = xb - xa, dz = zb - za; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+      pos.push(x - dz * ancho, 0.6, z + dx * ancho, x + dz * ancho, 0.6, z - dx * ancho);
+      if (i) { const b = 2 * i; idx.push(b - 2, b - 1, b, b - 1, b + 1, b); }
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx);
+    return geo;
+  }
+  function ponerCapa(k, puntos, ancho, op) {
+    const me = capas[k]; me.geometry.dispose();
+    me.geometry = puntos && puntos.length > 1 && op > 0 ? cinta(puntos, ancho) : new THREE.BufferGeometry();
+    me.material.opacity = op;
+  }
+  const hud = document.createElement('div'); hud.className = 'hud'; hud.setAttribute('aria-hidden', 'true');
+  hud.innerHTML = '<span class="hud-k"></span><b class="hud-v"></b><span class="hud-n"></span>'; document.body.appendChild(hud);
+  const hudK = hud.children[0], hudV = hud.children[1], hudN = hud.children[2];
+  function ponerHud(k, v, n, op) {
+    if (hudK.textContent !== k) hudK.textContent = k;
+    if (hudV.textContent !== v) hudV.textContent = v;
+    if (hudN.textContent !== n) hudN.textContent = n;
+    hud.style.opacity = op.toFixed(3);
+  }
+  const ventana = (t, a, b, f = 0.18) => Math.min(suave01((t - a) / f), 1 - suave01((t - (b - f)) / f));
+  const gradosTxt = (x) => `${Math.round(Math.abs(x) / DEG)}°`;
+  function capasGuion(nombre, t, p) {
+    const def = GUIONES[nombre], eje = (q) => [q.x, EJE_Z + q.z];
+    let arco = null, opA = 0, estela = null, opE = 0, rumbo = null, opR = 0, h = null;
+    if (def.giros) for (const [a, d] of def.giros) {
+      if (t < a - 0.05 || t > a + d + 0.9) continue;
+      const y0 = integrar(nombre)(a).yaw, y1 = p.yaw, c = eje(p), r = 100, pts = [];
+      const n = Math.max(2, Math.ceil(Math.abs(y1 - y0) / (3 * DEG)) + 1);
+      for (let i = 0; i < n; i++) { const y = y0 + ((y1 - y0) * i) / (n - 1); pts.push([c[0] + r * Math.sin(y), c[1] + r * Math.cos(y)]); }
+      arco = pts; opA = 0.9 * ventana(t, a - 0.05, a + d + 0.9);
+      h = ['Giro medido', gradosTxt(y1 - y0), Math.abs(y1 - y0) > 89 * DEG ? 'exacto: frena en los últimos 25°' : '', ventana(t, a - 0.05, a + d + 0.9)];
+    }
+    if (def.estela) {
+      const [a, b, c2] = def.estela, hasta = Math.min(t, b), pts = [];
+      for (let s = a; s <= hasta; s += 1 / 30) pts.push(eje(integrar(nombre)(s)));
+      estela = pts; opE = t < a ? 0 : 0.85 * (1 - suave01((t - c2) / 0.6));
+    }
+    const tw = def.tilt && [def.tilt[0][0] - 0.15, def.tilt[def.tilt.length - 1][0] + 0.25];
+    if (tw && t > tw[0] && t < tw[1]) h = ['Inclinación', gradosTxt(p.tilt * DEG), Math.abs(p.tilt) > 15 ? 'más de 15° por 250 ms: lo levantaron' : 'el límite es 15°', ventana(t, tw[0], tw[1])];
+    if (def.golpe && t > def.golpe[0] - 0.1 && t < def.golpe[0] + 0.85) h = ['Golpe', p.golpe > 0.3 ? '0,35 g' : '0,0 g', 'más de 0,35 g: lo empujaron', ventana(t, def.golpe[0] - 0.1, def.golpe[0] + 0.85)];
+    if (def.rumbo) {
+      const [a, b] = def.rumbo.linea, q0 = integrar(nombre)(Math.max(0, a)), c = eje(q0);
+      if (t > a && t < b) { rumbo = [[c[0], c[1]], [c[0] + 120 * Math.sin(q0.yaw), c[1] + 120 * Math.cos(q0.yaw)]]; opR = 0.75 * ventana(t, a, b); h = ['Rumbo', gradosTxt(p.yaw - q0.yaw), 'corrige solo para ir derecho', ventana(t, a, b)]; }
+    }
+    ponerCapa('arco', arco, 2.4, opA); ponerCapa('estela', estela, 2.2, opE); ponerCapa('rumbo', rumbo, 2.2, opR);
+    if (h) ponerHud(h[0], h[1], h[2], h[3]); else ponerHud('', '', '', 0);
+  }
+  function iniciarGuion(nombre, { mover = true, extras = true, desde = 0 } = {}) {
+    integrar(nombre);
+    demo.guion = { nombre, t0: performance.now() - desde * 1000, mover, extras, l0: spins[1].rotation.x, r0: spins[-1].rotation.x };
+  }
+  function terminarGuion() {
+    if (!demo.guion) return;
+    demo.guion = null; demo.yaw = demo.yawTgt = 0; demo.tilt = demo.tiltTgt = 0; demo.lift = demo.liftTgt = 0;
+    demoG.position.set(0, 0, 0); demoG.rotation.set(0, 0, 0);
+    ponerCapa('arco', null, 0, 0); ponerCapa('estela', null, 0, 0); ponerCapa('rumbo', null, 0, 0); ponerHud('', '', '', 0);
+  }
+  function pintarGuion(now) {
+    const g = demo.guion, t = (now - g.t0) / 1000;
+    if (t >= GUIONES[g.nombre].fin) { terminarGuion(); return; }
+    const p = poseGuion(g.nombre, t);
+    if (g.mover) {
+      demoG.rotation.set(p.tilt * DEG, p.yaw, 0);
+      demoG.position.set(p.x - EJE_Z * Math.sin(p.yaw), p.lift, p.z + EJE_Z - EJE_Z * Math.cos(p.yaw));   // gira sobre el eje de las ruedas
+    }
+    spins[1].rotation.x = g.l0 + p.al; spins[-1].rotation.x = g.r0 + p.ar;
+    if (g.extras) capasGuion(g.nombre, t, p);
+  }
   function sideOffset(side) {
     if (side === 'right') return { ox: 0.2, oy: 0 };
     if (side === 'left') return { ox: -0.2, oy: 0 };
@@ -2105,6 +2497,7 @@ function buildScene(THREE, RoomEnvironment, canvas) {
     for (const k of MODS) fadeTo(k, !id || ok.has(k) ? 1 : FADED, now);
   }
   function resetDemos() {
+    terminarGuion();
     demo.yawTgt = 0; demo.tiltTgt = 0; demo.liftTgt = 0; demo.wheelUntil = 0; demo.led = null; demo.ledBlink = false;
     cone.visible = false; coneMat.opacity = 0;
     irMats.forEach((m) => { m.emissive.setRGB(0, 0, 0); }); irPatches.forEach((p) => { p.material.opacity = 0; });
@@ -2117,6 +2510,7 @@ function buildScene(THREE, RoomEnvironment, canvas) {
     setSpin: (on) => { spin = on; },
     setExplode: (on) => { explode.tgt = on ? 1 : 0; },
     setFinish,
+    guion: iniciarGuion, pararGuion: terminarGuion, poseGuion,
     sonarDemo: (cm, col) => { cone.visible = true; coneMat.color.set(col); coneMat.opacity = 0.16; demo.led = col; demo.ledBlink = false; },
     irDemo: (on) => on.forEach((v, i) => { irMats[i].emissive.setRGB(v ? 0.9 : 0, v ? 0.9 : 0, v ? 0.9 : 0); irPatches[i].material.opacity = v ? 0.95 : 0; }),
     ledDemo: (col, blink) => { demo.led = col; demo.ledBlink = blink; },
@@ -2226,11 +2620,14 @@ function buildScene(THREE, RoomEnvironment, canvas) {
     parts.forEach((p) => p.position.copy(p.userData.ex).multiplyScalar(explode.cur));
     wires.visible = explode.cur < 0.02;
     // demos
-    if (now < demo.wheelUntil) { spins[1].rotation.x += demo.wheelL * dt; spins[-1].rotation.x += demo.wheelR * dt; }
-    demo.yaw += (demo.yawTgt - demo.yaw) * Math.min(1, dt * 2.6);
-    demo.tilt += (demo.tiltTgt - demo.tilt) * Math.min(1, dt * 4);
-    demo.lift += (demo.liftTgt - demo.lift) * Math.min(1, dt * 4);
-    demoG.rotation.set(demo.tilt * DEG, demo.yaw * DEG, 0); demoG.position.y = demo.lift;
+    if (demo.guion) pintarGuion(now);
+    else {
+      if (now < demo.wheelUntil) { spins[1].rotation.x += demo.wheelL * dt; spins[-1].rotation.x += demo.wheelR * dt; }
+      demo.yaw += (demo.yawTgt - demo.yaw) * Math.min(1, dt * 2.6);
+      demo.tilt += (demo.tiltTgt - demo.tilt) * Math.min(1, dt * 4);
+      demo.lift += (demo.liftTgt - demo.lift) * Math.min(1, dt * 4);
+      demoG.rotation.set(demo.tilt * DEG, demo.yaw * DEG, 0); demoG.position.y = demo.lift;
+    }
     if (demo.led) {
       ledColor.set(demo.led);
       const on = demo.ledBlink ? (Math.floor(now / 160) % 2 === 0 && (now % 2000) < 960) : true;
